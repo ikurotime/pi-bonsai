@@ -39,4 +39,12 @@ export function splitWidths(width, ratio, gap = 2) {
     const right = Math.max(24, usable - left);
     return [left, right];
 }
+/** Pad or trim a panel body to an exact line count. */
+export function fitBody(body, height) {
+    if (body.length === height)
+        return body;
+    if (body.length > height)
+        return body.slice(0, Math.max(0, height));
+    return [...body, ...Array.from({ length: height - body.length }, () => "")];
+}
 //# sourceMappingURL=panel.js.map

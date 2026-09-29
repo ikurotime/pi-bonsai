@@ -53,3 +53,10 @@ export function splitWidths(width: number, ratio: number, gap = 2): [number, num
 	const right = Math.max(24, usable - left);
 	return [left, right];
 }
+
+/** Pad or trim a panel body to an exact line count. */
+export function fitBody(body: string[], height: number): string[] {
+	if (body.length === height) return body;
+	if (body.length > height) return body.slice(0, Math.max(0, height));
+	return [...body, ...Array.from({ length: height - body.length }, () => "")];
+}

@@ -56,13 +56,17 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 ## Interface
 
 - [x] Native rendering via `@earendil-works/pi-tui`
-- [x] Standalone alt-screen TUI with scrolling and mouse
+- [x] Full-screen layout that adapts to terminal width and height
+- [x] CRT-style double-line bezel with a live clock and blinking cursor
+- [x] Green-phosphor / amber bonsai palette
+- [x] Pixel-art bonsai rendered in the grow-log panel on tall terminals
 - [x] `q` to quit, `r` to refresh
 - [x] `--demo` synthetic mode for screenshots and first-run
 - [x] `--snapshot` single-frame output for CI and docs
+- [x] `--rows` to test the layout at a specific height
 - [x] Full-screen `/fleet` overlay inside pi
 - [ ] Configurable panel layout and refresh rate
-- [ ] Theme selection matching pi themes
+- [ ] Selectable themes
 
 ## Distribution
 

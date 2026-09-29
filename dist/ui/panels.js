@@ -2,9 +2,10 @@
 import { formatAgo, formatClock, formatMoney, formatTokens } from "../format.js";
 import { bold, border, cyan, green, modelColor, muted, pink, purple, red, text, yellow } from "../theme.js";
 import { bigText } from "./bigdigits.js";
+import { BONSAI_WIDTH, bonsaiCaption, bonsaiLines } from "./bonsai.js";
 import { movingAverage, sparkline } from "./sparkline.js";
 const DAY = 86_400_000;
-export function sessionsBody(width, state) {
+export function sessionsBody(width, state, showBonsai = false) {
     const now = Date.now();
     const total = state.sessions.length;
     const lastHour = state.sessions.filter((s) => now - s.lastActivity < 3_600_000).length;
@@ -13,12 +14,17 @@ export function sessionsBody(width, state) {
     const perDay = Math.round(total / days);
     const lastClose = state.sessions[0] ? formatAgo(state.sessions[0].lastActivity, now) : "—";
     const big = bigText(total.toLocaleString("en-US"));
-    return [
+    const lines = [
         ...big.map((line) => pink(line)),
         "",
         `${text(bold(`${total}`))} ${muted("all")}  ·  ${text(`${lastHour}`)} ${muted("last hour")}  ·  ${text(`${perDay}`)}${muted("/day")}`,
         muted(`last close ${lastClose}`),
     ];
+    if (showBonsai) {
+        const pad = " ".repeat(Math.max(0, Math.floor((Math.max(0, width - 4) - BONSAI_WIDTH) / 2)));
+        lines.push("", ...bonsaiLines().map((line) => pad + line), `${pad}${bonsaiCaption()}`);
+    }
+    return lines;
 }
 export function fleetBody(width, state) {
     const totals = state.totals;

@@ -21,7 +21,9 @@ class FleetOverlay {
             demo,
         });
         this.store = new DashboardStore(config);
-        this.dashboard = new DashboardComponent(this.store);
+        this.dashboard = new DashboardComponent(this.store, {
+            getHeight: () => process.stdout.rows || 40,
+        });
         this.dashboard.setUpdateCallback(() => this.tui.requestRender());
     }
     async start() {
@@ -55,7 +57,7 @@ export default function (pi) {
                 return overlay;
             }, {
                 overlay: true,
-                overlayOptions: { anchor: "center", width: "98%", maxHeight: "96%", margin: 1 },
+                overlayOptions: { anchor: "center", width: "100%", maxHeight: "100%", margin: 0 },
             });
         },
     });

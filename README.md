@@ -6,21 +6,29 @@ Built on `@earendil-works/pi-tui`, so it renders with the same components and
 feel as pi itself.
 
 ```
-╭─ closed · 1w ───────────────────────────────╮  ╭─ fleet ────────────────────────────────────────────╮
-│ ███                                         │  │ 835 tok/s   avg 85   peak 2,099   tools 72/min     │
-│ █ █                                         │  │ ▁▂▃▅▂▇▃▁▂▅▇▃▂▁▃▅▇▂▁▃▅▂▇▃▁▂▅▇                  │
-│ ███                                         │  │ 9 sessions · 4 agents live | 1w 6 started ...      │
-│   █                                         │  │ ■ glm-5.3 ×27  ■ claude-sonnet-4.5 ×15             │
-│ ███                                         │  ╰────────────────────────────────────────────────────╯
-│                                             │
-│ 2,232 all · 36 last hour · 84/day           │
-╰─────────────────────────────────────────────╯
+╔═[ PI·BONSAI ]══════════════════════════════════════════════════════╗
+║ ╭─ grow log · 1w ──────────╮  ╭─ fleet ───────────────────────────╮ ║
+║ │ ███                      │  │ 835 tok/s  avg 85  peak 2,099     │ ║
+║ │ █ █                      │  │ ▁▂▃▅▂▇▃▁▂▅▇▃▂▁▃▅▇▂▁▃▅▂▇▃▁▂▅▇    │ ║
+║ │ ███                      │  │ 9 sessions · 4 agents live        │ ║
+║ │   █                      │  │ ■ glm-5.3 ×27  ■ sonnet-4.5 ×15    │ ║
+║ │ ███                      │  ╰───────────────────────────────────╯ ║
+║ │        ▄▄█▄▄             │                                        ║
+║ │       █▀   ▀█            │                                        ║
+║ │      ▐  ▄█▄  ▌           │                                        ║
+║ │       ▜▄█▀█▄▛            │                                        ║
+║ │         ▐█▌              │                                        ║
+║ │       ▗▄███▄▖            │                                        ║
+║ │       ▝▀▀▀▀▀▘            │                                        ║
+║ ╰──────────────────────────╯                                        ║
+╚═[ q quit · r refresh ]═════════════ 03:32:56 [ live █ ] ══════════╝
 ```
 
 ## Features
 
 See [FEATURES.md](./FEATURES.md) for the full list. Highlights:
 
+- **Full-screen CRT console** — a double-line bezel that adapts to the terminal size, a green-phosphor palette, live clock, and a pixel-art bonsai.
 - **Fleet** — tok/s now / average / peak, tools per minute, tokens per hour, sparklines, model breakdown.
 - **Agents** — live `pi` and subagent processes with status and the command they are running.
 - **Sessions** — totals, activity per hour/day, last close, per-session tokens and cost.

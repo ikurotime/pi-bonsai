@@ -11,6 +11,7 @@ interface CliOptions {
 	config: DashboardConfig;
 	help: boolean;
 	snapshot: number | undefined;
+	rows: number | undefined;
 }
 
 const HELP = `pi-bonsai — live dashboard for pi sessions, agents, and pull requests
@@ -24,6 +25,7 @@ Options:
   --sessions <paths>     Comma-separated session directories
   --interval <ms>        Poll interval in milliseconds (default 1000)
   --snapshot [width]     Render one frame to stdout and exit
+  --rows <n>             Override terminal height (useful with --snapshot)
   -h, --help             Show this help
 
 Keys:
@@ -38,6 +40,7 @@ function parseArgs(argv: string[]): CliOptions {
 	const config = buildConfig();
 	let help = false;
 	let snapshot: number | undefined;
+	let rows: number | undefined;
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === undefined) continue;
@@ -45,6 +48,11 @@ function parseArgs(argv: string[]): CliOptions {
 			case "--demo":
 				config.demo = true;
 				break;
+			case "--rows": {
+				const value = Number(argv[++i]);
+				if (Number.isFinite(value) && value >= 10) rows = value;
+				break;
+			}
 			case "--snapshot": {
 				const next = argv[i + 1];
 				if (next && /^\d+$/.test(next)) {
@@ -80,11 +88,11 @@ function parseArgs(argv: string[]): CliOptions {
 				}
 		}
 	}
-	return { config, help, snapshot };
+	return { config, help, snapshot, rows };
 }
 
 async function main(): Promise<void> {
-	const { config, help, snapshot } = parseArgs(process.argv.slice(2));
+	const { config, help, snapshot, rows } = parseArgs(process.argv.slice(2));
 	if (help) {
 		process.stdout.write(HELP);
 		return;
@@ -95,7 +103,8 @@ async function main(): Promise<void> {
 	if (snapshot !== undefined) {
 		const store = new DashboardStore(config);
 		await store.poll();
-		const dashboard = new DashboardComponent(store);
+		const height = rows ?? process.stdout.rows ?? 40;
+		const dashboard = new DashboardComponent(store, { getHeight: () => height });
 		process.stdout.write(`${dashboard.render(snapshot).join("\n")}\n`);
 		return;
 	}
@@ -106,7 +115,7 @@ async function main(): Promise<void> {
 
 	const terminal = new ProcessTerminal();
 	const tui = new TuiAltScreen(terminal, false, undefined, { mouse: false });
-	const dashboard = new DashboardComponent(store);
+	const dashboard = new DashboardComponent(store, { getHeight: () => terminal.rows });
 	const scroll = new ScrollView(dashboard, { primary: true, follow: "none" });
 	tui.addChild(scroll);
 	dashboard.setUpdateCallback(() => tui.requestRender());
