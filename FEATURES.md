@@ -1,4 +1,4 @@
-# pi-fleet features
+# pifleet features
 
 Status legend: `[x]` shipped in this repo, `[ ]` planned.
 
@@ -66,7 +66,7 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 
 ## Distribution
 
-- [x] npm `bin` (`npx pi-fleet`)
+- [x] npm `bin` (`npx pifleet`)
 - [x] pi package with a `/fleet` command (`pi install`)
 - [ ] Homebrew tap
 - [ ] Screenshots and gallery preview in the pi package gallery

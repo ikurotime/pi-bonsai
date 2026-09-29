@@ -1,5 +1,5 @@
 {
-  "name": "pi-fleet",
+  "name": "pifleet",
   "version": "0.1.0",
   "description": "A live operations dashboard for pi agents, sessions, and pull requests.",
   "type": "module",
@@ -7,7 +7,7 @@
   "author": "ikurotime",
   "keywords": ["pi-package", "pi", "tui", "dashboard", "agents", "observability"],
   "bin": {
-    "pi-fleet": "./dist/index.js"
+    "pifleet": "./dist/index.js"
   },
   "files": ["dist", "README.md", "FEATURES.md", "LICENSE"],
   "pi": {

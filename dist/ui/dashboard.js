@@ -32,7 +32,7 @@ export class DashboardComponent {
         return rows;
     }
     renderFooter(width) {
-        const left = `${pink("pi-fleet")} ${muted("·")} ${text(new Date(this.state.generatedAt).toLocaleTimeString())} ${muted(`· ${this.state.errors[0] ?? "live"}`)}`;
+        const left = `${pink("pifleet")} ${muted("·")} ${text(new Date(this.state.generatedAt).toLocaleTimeString())} ${muted(`· ${this.state.errors[0] ?? "live"}`)}`;
         const right = muted("q quit · r refresh");
         const gap = Math.max(1, width - visibleWidth(left) - visibleWidth(right));
         return `${left}${" ".repeat(gap)}${right}`;

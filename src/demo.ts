@@ -1,4 +1,4 @@
-/** Synthetic data so `pi-fleet --demo` works without any live pi activity. */
+/** Synthetic data so `pifleet --demo` works without any live pi activity. */
 
 import type { AgentProcess, FeedItem, PullRequest, SessionSummary } from "./types.js";
 

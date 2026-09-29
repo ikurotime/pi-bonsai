@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** pi-fleet — a live operations dashboard for pi sessions, agents, and pull requests. */
+/** pifleet — a live operations dashboard for pi sessions, agents, and pull requests. */
 
 import { ProcessTerminal, ScrollView, TuiAltScreen, matchesKey } from "@earendil-works/pi-tui";
 import { defaultSessionDirs } from "./collectors/sessions.js";
@@ -13,10 +13,10 @@ interface CliOptions {
 	snapshot: number | undefined;
 }
 
-const HELP = `pi-fleet — live dashboard for pi sessions, agents, and pull requests
+const HELP = `pifleet — live dashboard for pi sessions, agents, and pull requests
 
 Usage:
-  pi-fleet [options]
+  pifleet [options]
 
 Options:
   --demo                 Render synthetic data (no live activity required)
