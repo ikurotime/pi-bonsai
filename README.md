@@ -1,4 +1,4 @@
-# pi-crtree
+# pi-bonsai
 
 A live operations dashboard for [pi](https://github.com/earendil-works/pi) —
 watch sessions, agents, throughput, token spend, and pull requests in one panel.
@@ -33,20 +33,20 @@ See [FEATURES.md](./FEATURES.md) for the full list. Highlights:
 Run it without installing:
 
 ```bash
-npx pi-crtree --demo
+npx pi-bonsai --demo
 ```
 
 Or install globally:
 
 ```bash
-npm install -g pi-crtree
-pi-crtree --repo ~/Development/my-project
+npm install -g pi-bonsai
+pi-bonsai --repo ~/Development/my-project
 ```
 
 ### As a pi package
 
 ```bash
-pi install git:github.com/ikurotime/pi-crtree
+pi install git:github.com/ikurotime/pi-bonsai
 ```
 
 Then run `/fleet` inside pi to open the dashboard as a full-screen overlay.
@@ -55,7 +55,7 @@ Then run `/fleet` inside pi to open the dashboard as a full-screen overlay.
 ## Usage
 
 ```
-pi-crtree [options]
+pi-bonsai [options]
 
   --demo                 Render synthetic data (no live activity required)
   --repo <path>          Repository for the pull-request panel (default: cwd)
@@ -82,7 +82,7 @@ Set `PI_CODING_AGENT_SESSION_DIR` to point at a non-default session directory.
 The dashboard is designed to live in its own pane:
 
 ```bash
-tmux split-window -h 'pi-crtree --repo "$PWD"'
+tmux split-window -h 'pi-bonsai --repo "$PWD"'
 ```
 
 ## Development

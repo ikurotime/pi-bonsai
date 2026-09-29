@@ -1,4 +1,4 @@
-# pi-crtree features
+# pi-bonsai features
 
 Status legend: `[x]` shipped in this repo, `[ ]` planned.
 
@@ -66,7 +66,7 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 
 ## Distribution
 
-- [x] npm `bin` (`npx pi-crtree`)
+- [x] npm `bin` (`npx pi-bonsai`)
 - [x] pi package with a `/fleet` command (`pi install`)
 - [ ] Homebrew tap
 - [ ] Screenshots and gallery preview in the pi package gallery

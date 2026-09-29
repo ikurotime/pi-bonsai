@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** pi-crtree — a live operations dashboard for pi sessions, agents, and pull requests. */
+/** pi-bonsai — a live operations dashboard for pi sessions, agents, and pull requests. */
 
 import { ProcessTerminal, ScrollView, TuiAltScreen, matchesKey } from "@earendil-works/pi-tui";
 import { defaultSessionDirs } from "./collectors/sessions.js";
@@ -13,10 +13,10 @@ interface CliOptions {
 	snapshot: number | undefined;
 }
 
-const HELP = `pi-crtree — live dashboard for pi sessions, agents, and pull requests
+const HELP = `pi-bonsai — live dashboard for pi sessions, agents, and pull requests
 
 Usage:
-  pi-crtree [options]
+  pi-bonsai [options]
 
 Options:
   --demo                 Render synthetic data (no live activity required)

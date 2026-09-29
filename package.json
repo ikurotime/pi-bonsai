@@ -1,5 +1,5 @@
 {
-  "name": "pi-crtree",
+  "name": "pi-bonsai",
   "version": "0.1.0",
   "description": "A live operations dashboard for pi agents, sessions, and pull requests.",
   "type": "module",
@@ -7,7 +7,7 @@
   "author": "ikurotime",
   "keywords": ["pi-package", "pi", "tui", "dashboard", "agents", "observability"],
   "bin": {
-    "pi-crtree": "./dist/index.js"
+    "pi-bonsai": "./dist/index.js"
   },
   "files": ["dist", "README.md", "FEATURES.md", "LICENSE"],
   "pi": {

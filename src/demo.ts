@@ -1,4 +1,4 @@
-/** Synthetic data so `pi-crtree --demo` works without any live pi activity. */
+/** Synthetic data so `pi-bonsai --demo` works without any live pi activity. */
 
 import type { AgentProcess, FeedItem, PullRequest, SessionSummary } from "./types.js";
 

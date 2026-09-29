@@ -1,7 +1,7 @@
 /**
- * pi-crtree extension — open the dashboard as a full-screen overlay inside pi.
+ * pi-bonsai extension — open the dashboard as a full-screen overlay inside pi.
  *
- * Loaded as part of the pi-crtree package. Run `/fleet` to open it.
+ * Loaded as part of the pi-bonsai package. Run `/fleet` to open it.
  */
 import { matchesKey } from "@earendil-works/pi-tui";
 import { defaultSessionDirs } from "./collectors/sessions.js";
@@ -46,7 +46,7 @@ class FleetOverlay {
 }
 export default function (pi) {
     pi.registerCommand("fleet", {
-        description: "Open the pi-crtree operations dashboard",
+        description: "Open the pi-bonsai operations dashboard",
         handler: async (args, ctx) => {
             const demo = args.trim() === "demo";
             await ctx.ui.custom(async (tui, _theme, _keybindings, done) => {

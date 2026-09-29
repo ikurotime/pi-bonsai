@@ -1,4 +1,4 @@
-/** Synthetic data so `pi-crtree --demo` works without any live pi activity. */
+/** Synthetic data so `pi-bonsai --demo` works without any live pi activity. */
 const MODELS = ["glm-5.3", "claude-opus-5.5", "glm-5.2", "claude-sonnet-4.5"];
 const NAMES = ["p3-rated", "fixwave2", "wave10", "p3-rated>fix2e", "p3-rated>fix2h", "ci-triage"];
 let tick = 0;
