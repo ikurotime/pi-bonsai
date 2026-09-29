@@ -1,0 +1,39 @@
+{
+  "name": "pi-fleet",
+  "version": "0.1.0",
+  "description": "A live operations dashboard for pi agents, sessions, and pull requests.",
+  "type": "module",
+  "license": "MIT",
+  "author": "ikurotime",
+  "keywords": ["pi-package", "pi", "tui", "dashboard", "agents", "observability"],
+  "bin": {
+    "pi-fleet": "./dist/index.js"
+  },
+  "files": ["dist", "README.md", "FEATURES.md", "LICENSE"],
+  "pi": {
+    "extensions": ["./dist/extension.js"]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "bun src/index.ts",
+    "start": "node dist/index.js",
+    "demo": "bun src/index.ts --demo",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@earendil-works/pi-tui": "^0.87.1"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.87.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
