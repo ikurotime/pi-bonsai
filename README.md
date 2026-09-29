@@ -28,7 +28,7 @@ feel as pi itself.
 
 See [FEATURES.md](./FEATURES.md) for the full list. Highlights:
 
-- **Full-screen CRT console** — a double-line bezel that adapts to the terminal size, a green-phosphor palette, live clock, and a pixel-art bonsai.
+- **Full-screen CRT console** — a double-line bezel that adapts to the terminal size, a warm amber phosphor palette, live clock, and a pixel-art bonsai.
 - **Fleet** — tok/s now / average / peak, tools per minute, tokens per hour, sparklines, model breakdown.
 - **Agents** — live `pi` and subagent processes with status and the command they are running.
 - **Sessions** — totals, activity per hour/day, last close, per-session tokens and cost.

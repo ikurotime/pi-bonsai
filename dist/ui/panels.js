@@ -1,24 +1,52 @@
 /** Body builders for each dashboard panel. */
-import { formatAgo, formatClock, formatMoney, formatTokens } from "../format.js";
+import { formatAgo, formatClock, formatDuration, formatMoney, formatTokens } from "../format.js";
 import { bold, border, cyan, green, modelColor, muted, pink, purple, red, text, yellow } from "../theme.js";
 import { bigText } from "./bigdigits.js";
 import { BONSAI_WIDTH, bonsaiCaption, bonsaiLines } from "./bonsai.js";
 import { movingAverage, sparkline } from "./sparkline.js";
 const DAY = 86_400_000;
+const LIVE_SESSION_MS = 120_000;
+function sumOutput(sessions) {
+    return sessions.reduce((total, session) => total + session.output, 0);
+}
+function busiestDay(sessions) {
+    const byDay = new Map();
+    for (const session of sessions) {
+        const label = new Date(session.lastActivity).toLocaleDateString("en-US", { weekday: "short" });
+        byDay.set(label, (byDay.get(label) ?? 0) + 1);
+    }
+    let label = "—";
+    let count = 0;
+    for (const [key, value] of byDay) {
+        if (value > count) {
+            label = key;
+            count = value;
+        }
+    }
+    return { label, count };
+}
 export function sessionsBody(width, state, showBonsai = false) {
     const now = Date.now();
-    const total = state.sessions.length;
-    const lastHour = state.sessions.filter((s) => now - s.lastActivity < 3_600_000).length;
-    const oldest = state.sessions.reduce((min, s) => Math.min(min, s.startedAt), now);
+    const sessions = state.sessions;
+    const total = sessions.length;
+    const lastHour = sessions.filter((s) => now - s.lastActivity < 3_600_000).length;
+    const liveNow = sessions.filter((s) => now - s.lastActivity < LIVE_SESSION_MS).length;
+    const oldest = sessions.reduce((min, s) => Math.min(min, s.startedAt), now);
     const days = Math.max(1, (now - oldest) / DAY);
     const perDay = Math.round(total / days);
-    const lastClose = state.sessions[0] ? formatAgo(state.sessions[0].lastActivity, now) : "—";
+    const lastClose = sessions[0] ? formatAgo(sessions[0].lastActivity, now) : "—";
+    const output = sumOutput(sessions);
+    const spend = sessions.reduce((sum, s) => sum + s.cost, 0);
+    const busiest = busiestDay(sessions);
+    const avgOutput = Math.floor(output / Math.max(1, total));
     const big = bigText(total.toLocaleString("en-US"));
     const lines = [
         ...big.map((line) => pink(line)),
         "",
         `${text(bold(`${total}`))} ${muted("all")}  ·  ${text(`${lastHour}`)} ${muted("last hour")}  ·  ${text(`${perDay}`)}${muted("/day")}`,
-        muted(`last close ${lastClose}`),
+        `${muted("last close")} ${text(lastClose)}  ·  ${muted("live")} ${green(`${liveNow}`)}`,
+        `${muted("tokens")} ${text(formatTokens(output))}  ·  ${muted("spend")} ${text(formatMoney(spend))}`,
+        `${muted("busiest")} ${text(`${busiest.label} ${busiest.count}`)}  ·  ${muted("avg")} ${text(`${formatTokens(avgOutput)}/session`)}`,
     ];
     if (showBonsai) {
         const pad = " ".repeat(Math.max(0, Math.floor((Math.max(0, width - 4) - BONSAI_WIDTH) / 2)));
@@ -41,8 +69,13 @@ export function fleetBody(width, state) {
     const avgLine = sparkline(movingAverage(samples, 10), contentWidth, purple);
     const weekStart = Date.now() - 7 * DAY;
     const started = state.sessions.filter((s) => s.startedAt >= weekStart).length;
-    const aggregate = `${text(`${totals.sessions}`)} ${muted("sessions")}  ·  ${text(`${totals.liveAgents}`)} ${muted("agents live")}  |  ` +
-        `${muted("1w")} ${text(`${started} started`)}  ${text(`${formatTokens(totals.outputTokens)} tokens`)}  ${text(`${totals.toolCalls} tools`)}`;
+    const liveSessions = state.sessions.filter((s) => Date.now() - s.lastActivity < LIVE_SESSION_MS).length;
+    const aggregate = `${text(`${totals.sessions}`)} ${muted("sessions")}  ·  ${text(`${totals.liveAgents}`)} ${muted("agents")}  ·  ${green(`${liveSessions}`)} ${muted("streaming")}  |  ` +
+        `${muted("1w")} ${text(`${started} started`)}  ${text(`${formatTokens(totals.outputTokens)} out`)}  ${text(`${totals.toolCalls} tools`)}`;
+    const io = `${muted("in")} ${text(formatTokens(totals.inputTokens))}  ·  ` +
+        `${muted("cache")} ${text(formatTokens(totals.cacheRead))}  ·  ` +
+        `${muted("think")} ${text(formatTokens(totals.reasoningTokens))}  ·  ` +
+        `${muted("spend")} ${text(formatMoney(totals.cost))}`;
     const legend = totals.perModel
         .slice(0, 4)
         .map((usage, index) => `${modelColor(index)("■")} ${text(usage.model)} ${muted(`×${Math.max(1, Math.round(usage.tokens / 10_000))}`)}`)
@@ -51,8 +84,9 @@ export function fleetBody(width, state) {
         header,
         raw,
         avgLine,
-        muted(`${samples.length}s · per second above, 10s average below`),
+        muted(`${samples.length}s window · per second above, 10s average below`),
         aggregate,
+        io,
         legend || muted("no model usage yet"),
     ];
 }
@@ -65,22 +99,25 @@ export function agentsBody(width, state) {
     const agents = state.agents;
     if (agents.length === 0)
         return [muted("no live pi processes detected")];
+    const now = Date.now();
     const byPid = new Map(agents.map((a) => [a.pid, a]));
     const roots = agents.filter((a) => !byPid.has(a.parentPid));
     const childrenOf = (pid) => agents.filter((a) => a.parentPid === pid);
     const lines = [];
-    const MAX = 12;
+    const MAX = 14;
     let shown = 0;
     const renderAgent = (agent, depth) => {
         if (shown >= MAX)
             return;
         shown++;
-        const marker = depth === 0 ? pink("▍") : muted("└");
+        const branch = depth === 0 ? pink("▍") : muted("└");
         const indent = "  ".repeat(depth);
         const status = STATUS_STYLE[agent.status]?.(agent.status) ?? muted(agent.status);
         const model = agent.model ? purple(agent.model) : muted("—");
-        const detail = agent.detail ? muted(agent.detail) : "";
-        lines.push(`${indent}${marker} ${bold(text(agent.name))}  ${model}  ${status}  ${detail}`);
+        const up = agent.startedAt ? `${muted("up")} ${text(formatDuration(now - agent.startedAt))}` : "";
+        const pid = muted(`pid ${agent.pid}`);
+        const detail = agent.detail ? border(agent.detail) : "";
+        lines.push(`${indent}${branch} ${bold(text(agent.name))}  ${model}  ${status}  ${pid}  ${up}  ${detail}`);
     };
     for (const root of roots) {
         renderAgent(root, 0);
@@ -108,7 +145,8 @@ export function modelsBody(width, state) {
     const cachePct = totals.inputTokens + totals.cacheRead > 0
         ? Math.round((totals.cacheRead / (totals.inputTokens + totals.cacheRead)) * 100)
         : 0;
-    lines.push(muted(`cache hit ${cachePct}%  ·  reasoning ${formatTokens(totals.reasoningTokens)}  ·  total ${formatMoney(totals.cost)}`));
+    lines.push(`${muted("cache read")} ${text(formatTokens(totals.cacheRead))}  ·  ${muted("hit")} ${text(`${cachePct}%`)}  ·  ${muted("think")} ${text(formatTokens(totals.reasoningTokens))}`);
+    lines.push(`${muted("total spend")} ${text(formatMoney(totals.cost))}`);
     return lines;
 }
 const CHECK_STYLE = {
@@ -128,27 +166,50 @@ export function prsBody(width, state) {
     const armed = prs.filter((pr) => pr.armed).length;
     const open = prs.filter((pr) => pr.state === "OPEN").length;
     const drafts = prs.filter((pr) => pr.isDraft).length;
+    const approved = prs.filter((pr) => pr.reviewDecision === "APPROVED").length;
     const stats = `${text(bold(`${open}`))} ${muted("open")}   ` +
         `${green(`${counts.green} green`)}   ${red(`${counts.red} red`)}   ` +
         `${yellow(`${counts.running} running`)}   ${muted("armed")} ${pink(`${armed}`)}`;
+    const meta = `${muted("approved")} ${text(`${approved}`)}  ·  ${muted("draft")} ${text(`${drafts}`)}  ·  ${muted("total")} ${text(`${prs.length}`)}`;
     const contentWidth = Math.max(10, width - 4);
     const total = prs.length || 1;
-    const runs = [];
-    const push = (n, color) => {
-        const count = Math.round((n / total) * contentWidth);
-        if (count > 0)
-            runs.push({ color, count });
-    };
-    push(counts.green, green);
-    push(counts.red, red);
-    push(counts.running, yellow);
-    push(counts.none, muted);
-    let used = runs.reduce((sum, run) => sum + run.count, 0);
-    if (used < contentWidth)
-        runs.push({ color: muted, count: contentWidth - used });
-    const bar = runs.map((run) => run.color("█".repeat(run.count))).join("");
-    const lines = [stats, bar, muted(`${prs.length} shown · ${drafts} draft · ${armed} armed to merge`)];
-    for (const pr of prs.slice(0, Math.max(2, contentWidth > 40 ? 7 : 4))) {
+    const segments = [
+        { count: counts.green, color: green },
+        { count: counts.red, color: red },
+        { count: counts.running, color: yellow },
+        { count: counts.none, color: muted },
+    ];
+    // Assign exactly one column per character using cumulative proportions.
+    const columns = [];
+    let cumulative = 0;
+    let segmentIndex = 0;
+    let segmentEnd = (segments[0]?.count ?? 0) / total;
+    for (let i = 0; i < contentWidth; i++) {
+        const fraction = i / contentWidth;
+        while (segmentIndex < segments.length - 1 && fraction >= segmentEnd) {
+            segmentIndex++;
+            cumulative += segments[segmentIndex - 1]?.count ?? 0;
+            segmentEnd = (cumulative + (segments[segmentIndex]?.count ?? 0)) / total;
+        }
+        columns.push(segments[segmentIndex]?.color ?? muted);
+    }
+    const bar = [];
+    let runColor = columns[0] ?? muted;
+    let runLength = 0;
+    for (const color of columns) {
+        if (color === runColor) {
+            runLength++;
+        }
+        else {
+            bar.push(runColor("█".repeat(runLength)));
+            runColor = color;
+            runLength = 1;
+        }
+    }
+    if (runLength > 0)
+        bar.push(runColor("█".repeat(runLength)));
+    const lines = [stats, bar.join(""), meta];
+    for (const pr of prs.slice(0, Math.max(2, contentWidth > 40 ? 8 : 4))) {
         const style = CHECK_STYLE[pr.checks] ?? CHECK_STYLE.none;
         if (!style)
             continue;
@@ -164,7 +225,7 @@ export function feedBody(width, state) {
         return [muted("no command activity yet")];
     const contentWidth = Math.max(20, width - 4);
     const lines = [];
-    for (const item of state.feed.slice(0, 10)) {
+    for (const item of state.feed.slice(0, 24)) {
         const time = border(formatClock(item.at));
         const agent = pink(item.agent);
         const rawPrefix = `${formatClock(item.at)} › ${item.agent}  `;

@@ -33,20 +33,23 @@ export class DashboardComponent {
         const contentWidth = W - 4;
         const contentHeight = H - 2;
         const state = this.state;
-        // Row 1: grow log + fleet.
-        const [leftW, rightW] = splitWidths(contentWidth, 0.4, 2);
+        // Row 1: grow log (with bonsai) beside fleet + models.
+        const [leftW, rightW] = splitWidths(contentWidth, 0.42, 2);
         const showBonsai = contentHeight >= 34;
-        const row1 = twoColumn(panel(leftW, "grow log · 1w", phos, sessionsBody(leftW, state, showBonsai)), panel(rightW, "fleet", phos, fleetBody(rightW, state)), leftW, rightW);
+        const rightColumn = [
+            ...panel(rightW, "fleet", phos, fleetBody(rightW, state)),
+            ...panel(rightW, "models · session", phos, modelsBody(rightW, state)),
+        ];
+        const row1 = twoColumn(panel(leftW, "grow log · 1w", phos, sessionsBody(leftW, state, showBonsai)), rightColumn, leftW, rightW);
         // Row 2: agents / canopy.
         const agents = panel(contentWidth, `canopy · ${state.agents.length} live`, phos, agentsBody(contentWidth, state));
-        // Row 3: models + pull requests.
-        const [l2, r2] = splitWidths(contentWidth, 0.4, 2);
-        const row3 = twoColumn(panel(l2, "models · session", phos, modelsBody(l2, state)), panel(r2, state.repo ? `pull requests · ${state.repo}` : "pull requests", phos, prsBody(r2, state)), l2, r2);
+        // Row 3: pull requests, full width for long titles.
+        const prs = panel(contentWidth, state.repo ? `pull requests · ${state.repo}` : "pull requests", phos, prsBody(contentWidth, state));
         // Feed absorbs the leftover height so the console always fills the screen.
-        const used = row1.length + agents.length + row3.length;
+        const used = row1.length + agents.length + prs.length;
         const feedHeight = Math.max(5, contentHeight - used);
         const feed = panel(contentWidth, "feed", phos, fitBody(feedBody(contentWidth, state), feedHeight - 2));
-        let rows = [...row1, ...agents, ...row3, ...feed];
+        let rows = [...row1, ...agents, ...prs, ...feed];
         if (rows.length < contentHeight) {
             rows = [...rows, ...Array.from({ length: contentHeight - rows.length }, () => "")];
         }

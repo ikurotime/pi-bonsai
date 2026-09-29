@@ -58,7 +58,7 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 - [x] Native rendering via `@earendil-works/pi-tui`
 - [x] Full-screen layout that adapts to terminal width and height
 - [x] CRT-style double-line bezel with a live clock and blinking cursor
-- [x] Green-phosphor / amber bonsai palette
+- [x] Warm amber-and-moss bonsai palette
 - [x] Pixel-art bonsai rendered in the grow-log panel on tall terminals
 - [x] `q` to quit, `r` to refresh
 - [x] `--demo` synthetic mode for screenshots and first-run

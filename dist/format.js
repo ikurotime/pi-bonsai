@@ -37,7 +37,7 @@ export function formatDuration(ms) {
         return `${s}s`;
     const m = Math.floor(s / 60);
     if (m < 60)
-        return `${m}m${s % 60}s`;
+        return s % 60 ? `${m}m${s % 60}s` : `${m}m`;
     const h = Math.floor(m / 60);
     return `${h}h${m % 60}m`;
 }
