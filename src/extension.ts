@@ -1,7 +1,7 @@
 /**
- * pifleet extension — open the dashboard as a full-screen overlay inside pi.
+ * pi-crtree extension — open the dashboard as a full-screen overlay inside pi.
  *
- * Loaded as part of the pifleet package. Run `/fleet` to open it.
+ * Loaded as part of the pi-crtree package. Run `/fleet` to open it.
  */
 
 import type { Component, TUI } from "@earendil-works/pi-tui";
@@ -57,7 +57,7 @@ class FleetOverlay implements Component {
 
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("fleet", {
-		description: "Open the pifleet operations dashboard",
+		description: "Open the pi-crtree operations dashboard",
 		handler: async (args, ctx) => {
 			const demo = args.trim() === "demo";
 			await ctx.ui.custom<void>(

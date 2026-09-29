@@ -1,5 +1,5 @@
 {
-  "name": "pifleet",
+  "name": "pi-crtree",
   "version": "0.1.0",
   "description": "A live operations dashboard for pi agents, sessions, and pull requests.",
   "type": "module",
@@ -7,7 +7,7 @@
   "author": "ikurotime",
   "keywords": ["pi-package", "pi", "tui", "dashboard", "agents", "observability"],
   "bin": {
-    "pifleet": "./dist/index.js"
+    "pi-crtree": "./dist/index.js"
   },
   "files": ["dist", "README.md", "FEATURES.md", "LICENSE"],
   "pi": {

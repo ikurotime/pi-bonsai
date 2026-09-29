@@ -55,7 +55,7 @@ export async function scanProcesses(): Promise<AgentProcess[]> {
 		if (!pid || !ppid || !etime || !command) continue;
 		if (!looksLikePi(command)) continue;
 		// Skip the dashboard process itself.
-		if (command.includes("pifleet") || command.includes("pi-fleet")) continue;
+		if (command.includes("pi-crtree") || command.includes("pifleet") || command.includes("pi-fleet")) continue;
 		candidates.push({ pid: Number(pid), ppid: Number(ppid), etime, command });
 	}
 

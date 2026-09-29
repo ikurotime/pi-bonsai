@@ -50,7 +50,7 @@ export async function scanProcesses() {
         if (!looksLikePi(command))
             continue;
         // Skip the dashboard process itself.
-        if (command.includes("pifleet") || command.includes("pi-fleet"))
+        if (command.includes("pi-crtree") || command.includes("pifleet") || command.includes("pi-fleet"))
             continue;
         candidates.push({ pid: Number(pid), ppid: Number(ppid), etime, command });
     }
