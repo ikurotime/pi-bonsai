@@ -1,10 +1,10 @@
 /** Body builders for each dashboard panel. */
 
 import { formatAgo, formatClock, formatDuration, formatMoney, formatTokens } from "../format.js";
-import { bold, border, cyan, green, modelColor, muted, pink, purple, red, text, yellow } from "../theme.js";
+import { bold, border, cyan, green, inverse, modelColor, muted, phosBright, pink, purple, red, text, yellow } from "../theme.js";
 import type { DashboardState, SessionSummary } from "../types.js";
 import { bigText } from "./bigdigits.js";
-import { BONSAI_WIDTH, bonsaiCaption, bonsaiLines } from "./bonsai.js";
+import { bonsaiCaption, bonsaiLines } from "./bonsai.js";
 import { movingAverage, sparkline } from "./sparkline.js";
 
 const DAY = 86_400_000;
@@ -40,26 +40,28 @@ export function sessionsBody(width: number, state: DashboardState, showBonsai = 
 	const oldest = sessions.reduce((min, s) => Math.min(min, s.startedAt), now);
 	const days = Math.max(1, (now - oldest) / DAY);
 	const perDay = Math.round(total / days);
-	const lastClose = sessions[0] ? formatAgo(sessions[0].lastActivity, now) : "—";
 	const output = sumOutput(sessions);
 	const spend = sessions.reduce((sum, s) => sum + s.cost, 0);
 	const busiest = busiestDay(sessions);
 	const avgOutput = Math.floor(output / Math.max(1, total));
-	const big = bigText(total.toLocaleString("en-US"));
-	const lines = [
-		...big.map((line) => pink(line)),
-		"",
+
+	const stats = [
 		`${text(bold(`${total}`))} ${muted("all")}  ·  ${text(`${lastHour}`)} ${muted("last hour")}  ·  ${text(`${perDay}`)}${muted("/day")}`,
-		`${muted("last close")} ${text(lastClose)}  ·  ${muted("live")} ${green(`${liveNow}`)}`,
-		`${muted("tokens")} ${text(formatTokens(output))}  ·  ${muted("spend")} ${text(formatMoney(spend))}`,
+		`${muted("tokens")} ${text(formatTokens(output))}  ·  ${muted("spend")} ${text(formatMoney(spend))}  ·  ${muted("live")} ${green(`${liveNow}`)}`,
 		`${muted("busiest")} ${text(`${busiest.label} ${busiest.count}`)}  ·  ${muted("avg")} ${text(`${formatTokens(avgOutput)}/session`)}`,
 	];
 
 	if (showBonsai) {
-		const pad = " ".repeat(Math.max(0, Math.floor((Math.max(0, width - 4) - BONSAI_WIDTH) / 2)));
-		lines.push("", ...bonsaiLines().map((line) => pad + line), `${pad}${bonsaiCaption()}`);
+		return [...bonsaiLines(width), bonsaiCaption(width), "", ...stats];
 	}
-	return lines;
+
+	const lastClose = sessions[0] ? formatAgo(sessions[0].lastActivity, now) : "—";
+	return [
+		...bigText(total.toLocaleString("en-US")).map((line) => pink(line)),
+		"",
+		...stats,
+		muted(`last close ${lastClose}`),
+	];
 }
 
 export function fleetBody(width: number, state: DashboardState): string[] {
@@ -114,38 +116,106 @@ const STATUS_STYLE: Record<string, (s: string) => string> = {
 	idle: muted,
 };
 
-export function agentsBody(width: number, state: DashboardState): string[] {
-	const agents = state.agents;
-	if (agents.length === 0) return [muted("no live pi processes detected")];
+export type AgentViewMode = "list" | "detail";
 
-	const now = Date.now();
+export interface AgentView {
+	/** Index into the flattened agent list (roots then children). */
+	selected: number;
+	mode: AgentViewMode;
+}
+
+export interface AgentBodyResult {
+	lines: string[];
+	/** For each line, the agent index it represents (undefined for non-selectable lines). */
+	hits: Array<number | undefined>;
+}
+
+function flatten(agents: DashboardState["agents"]): Array<{ agent: DashboardState["agents"][number]; depth: number }> {
 	const byPid = new Map(agents.map((a) => [a.pid, a]));
 	const roots = agents.filter((a) => !byPid.has(a.parentPid));
-	const childrenOf = (pid: number) => agents.filter((a) => a.parentPid === pid);
-	const lines: string[] = [];
-	const MAX = 14;
-	let shown = 0;
+	const order: Array<{ agent: DashboardState["agents"][number]; depth: number }> = [];
+	for (const root of roots) {
+		order.push({ agent: root, depth: 0 });
+		for (const child of agents.filter((a) => a.parentPid === root.pid)) order.push({ agent: child, depth: 1 });
+	}
+	// Include any orphaned children whose parent was not scanned.
+	for (const agent of agents) if (!order.some((entry) => entry.agent === agent)) order.push({ agent, depth: 0 });
+	return order;
+}
 
-	const renderAgent = (agent: (typeof agents)[number], depth: number) => {
-		if (shown >= MAX) return;
-		shown++;
+function agentDetail(width: number, agent: DashboardState["agents"][number], now: number, state: DashboardState): string[] {
+	const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+	const key = norm(agent.name);
+	const session =
+		(agent.sessionId ? state.sessions.find((s) => s.id === agent.sessionId) : undefined) ??
+		state.sessions.find((s) => {
+			if (!key || !s.name) return false;
+			const candidate = norm(s.name);
+			return candidate === key || candidate.endsWith(key) || candidate.includes(key);
+		});
+	const status = STATUS_STYLE[agent.status]?.(agent.status) ?? muted(agent.status);
+	const maxText = Math.max(16, width - 12);
+	const wrap = (value: string) => (value.length > maxText ? `${value.slice(0, maxText - 1)}…` : value);
+	const lines = [
+		`${phosBright("▶")} ${phosBright(bold(agent.name))}  ${agent.model ? purple(agent.model) : muted("—")}  ${status}`,
+		`${muted("pid")} ${text(`${agent.pid}`)}   ${muted("parent")} ${text(`${agent.parentPid}`)}   ${muted("uptime")} ${text(agent.startedAt ? formatDuration(now - agent.startedAt) : "—")}   ${muted("started")} ${text(agent.startedAt ? formatClock(agent.startedAt) : "—")}`,
+		`${muted("cwd")} ${text(wrap(agent.cwd ?? "—"))}`,
+	];
+	if (session) {
+		lines.push(
+			`${muted("session")} ${text(session.name ?? session.id)}   ${muted("tokens")} ${text(formatTokens(session.output))}   ${muted("tools")} ${text(`${session.toolCalls}`)}   ${muted("spend")} ${text(formatMoney(session.cost))}`,
+		);
+	} else if (agent.sessionId) {
+		lines.push(`${muted("session")} ${text(agent.sessionId)}`);
+	}
+	lines.push(`${muted("activity")} ${agent.detail ? border(wrap(agent.detail)) : muted("—")}`);
+	const children = state.agents.filter((a) => a.parentPid === agent.pid);
+	if (children.length > 0) lines.push(`${muted("children")} ${text(children.map((c) => c.name).join(", "))}`);
+	lines.push("", muted("↑/↓ select   enter detail   tab list   click a row"));
+	return lines;
+}
+
+export function agentsBody(
+	width: number,
+	state: DashboardState,
+	view: AgentView = { selected: 0, mode: "list" },
+): AgentBodyResult {
+	const order = flatten(state.agents);
+	if (order.length === 0) return { lines: [muted("no live pi processes detected")], hits: [] };
+
+	const now = Date.now();
+	const selected = Math.min(Math.max(0, view.selected), order.length - 1);
+
+	if (view.mode === "detail") {
+		const entry = order[selected];
+		if (entry) return { lines: agentDetail(width, entry.agent, now, state), hits: [] };
+	}
+
+	const lines: string[] = [];
+	const hits: Array<number | undefined> = [];
+	const MAX = 14;
+	order.slice(0, MAX).forEach((entry, index) => {
+		const { agent, depth } = entry;
+		const isSelected = index === selected;
+		const cursor = isSelected ? phosBright("▶") : " ";
 		const branch = depth === 0 ? pink("▍") : muted("└");
 		const indent = "  ".repeat(depth);
+		const name = isSelected ? phosBright(bold(agent.name)) : bold(text(agent.name));
 		const status = STATUS_STYLE[agent.status]?.(agent.status) ?? muted(agent.status);
 		const model = agent.model ? purple(agent.model) : muted("—");
 		const up = agent.startedAt ? `${muted("up")} ${text(formatDuration(now - agent.startedAt))}` : "";
 		const pid = muted(`pid ${agent.pid}`);
 		const detail = agent.detail ? border(agent.detail) : "";
-		lines.push(`${indent}${branch} ${bold(text(agent.name))}  ${model}  ${status}  ${pid}  ${up}  ${detail}`);
-	};
-
-	for (const root of roots) {
-		renderAgent(root, 0);
-		for (const child of childrenOf(root.pid)) renderAgent(child, 1);
+		const row = `${cursor} ${indent}${branch} ${name}  ${model}  ${status}  ${pid}  ${up}  ${detail}`;
+		lines.push(isSelected ? inverse(row) : row);
+		hits.push(index);
+	});
+	const hidden = order.length - Math.min(order.length, MAX);
+	if (hidden > 0) {
+		lines.push(muted(`… ${hidden} more`));
+		hits.push(undefined);
 	}
-	const hidden = agents.length - shown;
-	if (hidden > 0) lines.push(muted(`… ${hidden} more`));
-	return lines;
+	return { lines, hits };
 }
 
 export function modelsBody(width: number, state: DashboardState): string[] {
@@ -180,7 +250,7 @@ const CHECK_STYLE: Record<string, { glyph: string; color: (s: string) => string 
 	none: { glyph: "•", color: muted },
 };
 
-export function prsBody(width: number, state: DashboardState): string[] {
+export function prsBody(width: number, state: DashboardState, limit = 8): string[] {
 	const prs = state.prs;
 	if (prs.length === 0) {
 		return [muted("no pull requests (needs gh + a repo)")];
@@ -236,7 +306,7 @@ export function prsBody(width: number, state: DashboardState): string[] {
 	}
 	if (runLength > 0) bar.push(runColor("█".repeat(runLength)));
 	const lines = [stats, bar.join(""), meta];
-	for (const pr of prs.slice(0, Math.max(2, contentWidth > 40 ? 8 : 4))) {
+	for (const pr of prs.slice(0, Math.max(2, limit))) {
 		const style = CHECK_STYLE[pr.checks] ?? CHECK_STYLE.none;
 		if (!style) continue;
 		const glyph = style.color(style.glyph);

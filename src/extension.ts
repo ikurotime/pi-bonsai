@@ -4,7 +4,7 @@
  * Loaded as part of the pi-bonsai package. Run `/fleet` to open it.
  */
 
-import type { Component, TUI } from "@earendil-works/pi-tui";
+import type { Component, TUI, TuiMouseEvent, TuiMouseEventResult } from "@earendil-works/pi-tui";
 import { matchesKey } from "@earendil-works/pi-tui";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { defaultSessionDirs } from "./collectors/sessions.js";
@@ -50,10 +50,15 @@ class FleetOverlay implements Component {
 	}
 
 	handleInput(data: string): void {
+		if (this.dashboard.handleInput(data)) return;
 		if (matchesKey(data, "q") || matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) {
 			this.dispose();
 			this.done();
 		}
+	}
+
+	handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+		return this.dashboard.handleMouse(event);
 	}
 }
 

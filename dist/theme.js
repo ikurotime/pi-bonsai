@@ -25,6 +25,12 @@ export const dimPhos = fg(142, 118, 80);
 export const bezel = fg(186, 138, 62);
 /** Moss green — foliage and "ok" states. */
 export const moss = fg(168, 214, 96);
+/** Sunlit leaf highlight. */
+export const mossBright = fg(214, 236, 138);
+/** Shaded leaf / outline. */
+export const mossDim = fg(112, 148, 74);
+/** Warm bark and branches. */
+export const bark = fg(198, 132, 74);
 export const ok = moss;
 export const err = fg(255, 106, 77);
 export const warn = fg(255, 176, 58);

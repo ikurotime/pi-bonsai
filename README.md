@@ -6,31 +6,39 @@ Built on `@earendil-works/pi-tui`, so it renders with the same components and
 feel as pi itself.
 
 ```
-╔═[ PI·BONSAI ]══════════════════════════════════════════════════════╗
-║ ╭─ grow log · 1w ──────────╮  ╭─ fleet ───────────────────────────╮ ║
-║ │ ███                      │  │ 835 tok/s  avg 85  peak 2,099     │ ║
-║ │ █ █                      │  │ ▁▂▃▅▂▇▃▁▂▅▇▃▂▁▃▅▇▂▁▃▅▂▇▃▁▂▅▇    │ ║
-║ │ ███                      │  │ 9 sessions · 4 agents live        │ ║
-║ │   █                      │  │ ■ glm-5.3 ×27  ■ sonnet-4.5 ×15    │ ║
-║ │ ███                      │  ╰───────────────────────────────────╯ ║
-║ │        ▄▄█▄▄             │                                        ║
-║ │       █▀   ▀█            │                                        ║
-║ │      ▐  ▄█▄  ▌           │                                        ║
-║ │       ▜▄█▀█▄▛            │                                        ║
-║ │         ▐█▌              │                                        ║
-║ │       ▗▄███▄▖            │                                        ║
-║ │       ▝▀▀▀▀▀▘            │                                        ║
-║ ╰──────────────────────────╯                                        ║
-╚═[ q quit · r refresh ]═════════════ 03:32:56 [ live █ ] ══════════╝
+╔═[ FLEET ] · pi·bonsai ═════════════════════════════════════════════════╗
+║ ╭─ bonsai · grow log ────────╮  ╭─ fleet ──────────────────────────╮ ║
+║ │            .:&@@&:.        │  │ 835 tok/s  avg 85  peak 2,099     │ ║
+║ │         ,&@@&&@@@@&&@,     │  │ ▁▂▃▅▂▇▃▁▂▅▇▃▂▁▃▅▇▂▁▃▅▂▇▃▁▂▅▇    │ ║
+║ │      .,&@@@&@\|/@@@@&@@,   │  │ 9 sessions · 4 agents · 4 live    │ ║
+║ │     ,&@@&@@@&\|/-.@@&@@@'  │  │ in 4.1M · cache 2.0M · $1.30      │ ║
+║ │      `'&@@&~-.||  `'&@@@@, │  ╰──────────────────────────────────╯ ║
+║ │     .:&&@&~-.__||/-'&@@&@' │  ╭─ models · session ───────────────╮ ║
+║ │    ,&@@&@@'`-.||/    `'~   │  │ ■ glm-5.3       ██████████ 273k   │ ║
+║ │     `'&@&@&:. |||  ,&@@&,  │  │ ■ sonnet-4.5    ██████░░░░ 154k   │ ║
+║ │        `'&@@&-.||-'@@&@@'  │  │ cache read 2.0M · hit 33% · $1.30 │ ║
+║ │              .-'||         │  ╰──────────────────────────────────╯ ║
+║ │              |||)          │                                       ║
+║ │          ____/||\____      │                                       ║
+║ │       .-'~~~~~~~~~~~~'-.   │                                       ║
+║ │      (  . : . : . : .   )  │                                       ║
+║ │       `-.__(__)__(__).-'   │                                       ║
+║ │ 9 all · 676k tokens · $1.30│                                       ║
+║ ╰─────────────────────────────╯                                       ║
+║ ╭─ canopy · 4 live · 1/4 ───────────────────────────────────────────╮ ║
+║ │ ▶ ▍ p3 rated  glm-5.3  streaming  pid 41001  up 10m              │ ║
+║ │     └ fix2e  glm-5.3  tool  pid 41002  terminal command…         │ ║
+║ ╰───────────────────────────────────────────────────────────────────╯ ║
+╚═[ ↑↓ select · enter detail · tab · q quit · r refresh ]══ 03:32:56 ══╝
 ```
 
 ## Features
 
 See [FEATURES.md](./FEATURES.md) for the full list. Highlights:
 
-- **Full-screen CRT console** — a double-line bezel that adapts to the terminal size, a warm amber phosphor palette, live clock, and a pixel-art bonsai.
+- **Full-screen CRT console** — a double-line bezel with a `FLEET` banner that adapts to the terminal size, a warm amber phosphor palette, live clock, and a realistic ASCII bonsai tinted by part (moss canopy, bark trunk, bronze pot).
 - **Fleet** — tok/s now / average / peak, tools per minute, tokens per hour, sparklines, model breakdown.
-- **Agents** — live `pi` and subagent processes with status and the command they are running.
+- **Agents (interactive)** — live `pi` and subagent processes in a tree; move with `↑/↓` or `j/k`, press `enter`/`tab` for a detail view, or click a row (click again to open). Detail shows pid/parent, uptime, cwd, session tokens/tools/spend, activity, and children.
 - **Sessions** — totals, activity per hour/day, last close, per-session tokens and cost.
 - **Models** — per-model token bars and spend for the current session, cache-hit rate, reasoning tokens.
 - **Pull requests** — open / green / red / running / armed, a status bar, and the PR list (via `gh`).
@@ -73,7 +81,7 @@ pi-bonsai [options]
   -h, --help             Show this help
 ```
 
-Keys: `q` / `ctrl+c` quit, `r` refresh.
+Keys: `↑/↓` or `j/k` select an agent, `enter`/`tab` toggle the agent list/detail view, click a row to select it, `q` / `ctrl+c` quit, `r` refresh.
 
 ### Data sources
 

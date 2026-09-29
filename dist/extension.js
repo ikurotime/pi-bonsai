@@ -40,10 +40,15 @@ class FleetOverlay {
         return this.dashboard.render(width);
     }
     handleInput(data) {
+        if (this.dashboard.handleInput(data))
+            return;
         if (matchesKey(data, "q") || matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) {
             this.dispose();
             this.done();
         }
+    }
+    handleMouse(event) {
+        return this.dashboard.handleMouse(event);
     }
 }
 export default function (pi) {

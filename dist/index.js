@@ -19,6 +19,9 @@ Options:
   -h, --help             Show this help
 
 Keys:
+  ↑/↓, j/k               Select an agent
+  enter, tab             Toggle agent list / detail view
+  click                  Select an agent (click again for detail)
   q, ctrl+c              Quit
   r                      Force refresh
 
@@ -107,7 +110,7 @@ async function main() {
     await store.poll(); // load once so the first frame is populated
     store.start();
     const terminal = new ProcessTerminal();
-    const tui = new TuiAltScreen(terminal, false, undefined, { mouse: false });
+    const tui = new TuiAltScreen(terminal, false, undefined, { mouse: true });
     const dashboard = new DashboardComponent(store, { getHeight: () => terminal.rows });
     const scroll = new ScrollView(dashboard, { primary: true, follow: "none" });
     tui.addChild(scroll);
@@ -123,6 +126,10 @@ async function main() {
         process.exit(0);
     };
     tui.addInputListener((data) => {
+        if (dashboard.handleInput(data)) {
+            tui.requestRender();
+            return { consume: true };
+        }
         if (matchesKey(data, "q") || matchesKey(data, "ctrl+c")) {
             shutdown();
             return { consume: true };

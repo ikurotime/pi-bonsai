@@ -1,13 +1,13 @@
 /** Root dashboard component: a full-screen CRT console that re-renders on store updates. */
 
-import type { Component } from "@earendil-works/pi-tui";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { Component, TuiMouseEvent, TuiMouseEventResult } from "@earendil-works/pi-tui";
+import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { formatClock } from "../format.js";
 import type { DashboardStore } from "../store.js";
-import { bezel, bold, phos, phosBright } from "../theme.js";
+import { amber, bezel, bold, phos, phosBright } from "../theme.js";
 import type { DashboardState } from "../types.js";
 import { fitBody, panel, splitWidths, twoColumn } from "./panel.js";
-import { agentsBody, feedBody, fleetBody, modelsBody, prsBody, sessionsBody } from "./panels.js";
+import { type AgentView, agentsBody, feedBody, fleetBody, modelsBody, prsBody, sessionsBody } from "./panels.js";
 
 export interface DashboardOptions {
 	/** Terminal height provider; defaults to the current stdout rows. */
@@ -24,6 +24,11 @@ export class DashboardComponent implements Component {
 	private state: DashboardState;
 	private onUpdate?: () => void;
 	private readonly getHeight: () => number;
+
+	/** Interactive agent view state. */
+	private agentView: AgentView = { selected: 0, mode: "list" };
+	/** Maps rendered output rows to agent indices for mouse hit-testing. */
+	private readonly agentHit = new Map<number, number>();
 
 	constructor(
 		private readonly store: DashboardStore,
@@ -43,6 +48,54 @@ export class DashboardComponent implements Component {
 
 	invalidate(): void {}
 
+	/** Handle navigation keys. Returns true when the key was consumed. */
+	handleInput(data: string): boolean {
+		const count = this.state.agents.length;
+		if (matchesKey(data, "tab")) {
+			this.agentView.mode = this.agentView.mode === "list" ? "detail" : "list";
+			this.onUpdate?.();
+			return true;
+		}
+		if (matchesKey(data, "up") || matchesKey(data, "k")) {
+			this.moveSelection(-1, count);
+			return true;
+		}
+		if (matchesKey(data, "down") || matchesKey(data, "j")) {
+			this.moveSelection(1, count);
+			return true;
+		}
+		if (matchesKey(data, "enter") || matchesKey(data, "return")) {
+			this.agentView.mode = this.agentView.mode === "list" ? "detail" : "list";
+			this.onUpdate?.();
+			return true;
+		}
+		if (matchesKey(data, "escape") && this.agentView.mode === "detail") {
+			this.agentView.mode = "list";
+			this.onUpdate?.();
+			return true;
+		}
+		return false;
+	}
+
+	private moveSelection(delta: number, count: number): void {
+		if (count === 0) return;
+		const next = Math.min(Math.max(0, this.agentView.selected + delta), count - 1);
+		this.agentView.selected = next;
+		this.onUpdate?.();
+	}
+
+	/** Click or press on an agent row selects it; clicking it again opens the detail view. */
+	handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+		if (event.button !== "left" || (event.type !== "press" && event.type !== "click")) return undefined;
+		const index = this.agentHit.get(event.y);
+		if (index === undefined) return undefined;
+		const already = this.agentView.selected === index;
+		this.agentView.selected = index;
+		if (event.type === "click" && (already || event.clickCount === 2)) this.agentView.mode = "detail";
+		this.onUpdate?.();
+		return { handled: true, render: true };
+	}
+
 	render(width: number): string[] {
 		const W = Math.max(64, width);
 		const H = Math.max(18, this.getHeight());
@@ -50,47 +103,62 @@ export class DashboardComponent implements Component {
 		const contentHeight = H - 2;
 		const state = this.state;
 
-		// Row 1: grow log (with bonsai) beside fleet + models.
-		const [leftW, rightW] = splitWidths(contentWidth, 0.42, 2);
-		const showBonsai = contentHeight >= 34;
+		this.agentHit.clear();
+		this.agentView.selected = Math.min(Math.max(0, this.agentView.selected), Math.max(0, state.agents.length - 1));
+
+		// Row 1: bonsai / grow log beside fleet + models.
+		const [leftW, rightW] = splitWidths(contentWidth, 0.34, 2);
+		const showBonsai = contentHeight >= 42;
 		const rightColumn = [
 			...panel(rightW, "fleet", phos, fleetBody(rightW, state)),
 			...panel(rightW, "models · session", phos, modelsBody(rightW, state)),
 		];
+		const leftTitle = showBonsai ? "bonsai · grow log" : "grow log · 1w";
 		const row1 = twoColumn(
-			panel(leftW, "grow log · 1w", phos, sessionsBody(leftW, state, showBonsai)),
+			panel(leftW, leftTitle, phos, sessionsBody(leftW, state, showBonsai)),
 			rightColumn,
 			leftW,
 			rightW,
 		);
+		const rows: string[] = [...row1];
 
-		// Row 2: agents / canopy.
-		const agents = panel(contentWidth, `canopy · ${state.agents.length} live`, phos, agentsBody(contentWidth, state));
+		// Row 2: interactive agents / canopy.
+		const canopy = agentsBody(contentWidth, state, this.agentView);
+		const canopyTop = rows.length;
+		const canopyTitle =
+			this.agentView.mode === "detail"
+				? `canopy · detail · ${this.agentView.selected + 1}/${state.agents.length}`
+				: `canopy · ${state.agents.length} live · ${Math.min(this.agentView.selected + 1, Math.max(1, state.agents.length))}/${Math.max(1, state.agents.length)}`;
+		rows.push(...panel(contentWidth, canopyTitle, phos, canopy.lines));
+		// Output row y = 1 (bezel title) + panel offset (1) + body line index.
+		canopy.hits.forEach((agentIndex, lineIndex) => {
+			if (agentIndex !== undefined) this.agentHit.set(1 + canopyTop + 1 + lineIndex, agentIndex);
+		});
 
-		// Row 3: pull requests, full width for long titles.
-		const prs = panel(contentWidth, state.repo ? `pull requests · ${state.repo}` : "pull requests", phos, prsBody(contentWidth, state));
+		// Row 3: pull requests, sized to leave room for the feed.
+		const feedMin = 5;
+		const remaining = contentHeight - rows.length;
+		const prLimit = Math.max(2, remaining - feedMin - 5);
+		rows.push(...panel(contentWidth, state.repo ? `pull requests · ${state.repo}` : "pull requests", phos, prsBody(contentWidth, state, prLimit)));
 
-		// Feed absorbs the leftover height so the console always fills the screen.
-		const used = row1.length + agents.length + prs.length;
-		const feedHeight = Math.max(5, contentHeight - used);
-		const feed = panel(contentWidth, "feed", phos, fitBody(feedBody(contentWidth, state), feedHeight - 2));
+		// Row 4: feed absorbs the leftover height so the console fills the screen.
+		const feedHeight = Math.max(feedMin, contentHeight - rows.length);
+		rows.push(...panel(contentWidth, "feed", phos, fitBody(feedBody(contentWidth, state), feedHeight - 2)));
 
-		let rows = [...row1, ...agents, ...prs, ...feed];
-		if (rows.length < contentHeight) {
-			rows = [...rows, ...Array.from({ length: contentHeight - rows.length }, () => "")];
-		}
-		return this.frame(W, rows);
+		const padded = rows.length < contentHeight ? [...rows, ...Array.from({ length: contentHeight - rows.length }, () => "")] : rows;
+		return this.frame(W, padded);
 	}
 
-	/** Wrap the panel rows in a double-line CRT bezel with a status readout. */
+	/** Wrap the panel rows in a double-line CRT bezel with a banner and status readout. */
 	private frame(width: number, rows: string[]): string[] {
 		const innerWidth = width - 4;
 		const state = this.state;
 		const out: string[] = [];
 
-		const lead = "╔═[ PI·BONSAI ]";
-		const fill = Math.max(0, width - lead.length - 1);
-		out.push(bezel("╔═[ ") + phos(bold("PI·BONSAI")) + bezel(` ]${"═".repeat(fill)}╗`));
+		const brand = "FLEET";
+		const sub = " · pi·bonsai ";
+		const fill = Math.max(0, width - (`╔═[ ${brand} ]`.length + sub.length) - 1);
+		out.push(bezel("╔═[ ") + phos(bold(brand)) + bezel(" ]") + amber(sub) + bezel(`${"═".repeat(fill)}╗`));
 
 		for (const row of rows) {
 			out.push(`${bezel("║")} ${padCell(row, innerWidth)} ${bezel("║")}`);
@@ -100,7 +168,7 @@ export class DashboardComponent implements Component {
 		const cursor = blink ? "█" : " ";
 		const clock = formatClock(Date.now());
 		const status = state.errors[0] ? "alert" : "live";
-		const hintLead = "╚═[ q quit · r refresh ]";
+		const hintLead = "╚═[ ↑↓ select · enter detail · tab · q quit · r refresh ]";
 		const hintTailRaw = ` ${clock} [ ${status} ${cursor} ] `;
 		const dash = Math.max(0, width - hintLead.length - hintTailRaw.length - 1);
 		out.push(
