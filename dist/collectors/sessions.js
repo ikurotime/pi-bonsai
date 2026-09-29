@@ -126,10 +126,15 @@ function parseSession(file, content) {
                 if (!block || typeof block !== "object")
                     continue;
                 const b = block;
+                if (b.type === "text" && typeof b.text === "string" && b.text.trim()) {
+                    summary.lastMessage = b.text.trim();
+                    continue;
+                }
                 if (b.type !== "toolCall")
                     continue;
                 summary.toolCalls++;
                 const name = typeof b.name === "string" ? b.name : "tool";
+                summary.lastTool = name;
                 const command = name === "bash" ? commandFromToolArgs(b.arguments) : undefined;
                 if (command) {
                     feed.push({

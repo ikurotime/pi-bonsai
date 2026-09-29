@@ -1,11 +1,41 @@
 /** Body builders for each dashboard panel. */
 import { formatAgo, formatClock, formatDuration, formatMoney, formatTokens } from "../format.js";
-import { bold, border, cyan, green, inverse, modelColor, muted, phosBright, pink, purple, red, text, yellow } from "../theme.js";
+import { amber, bold, border, green, inverse, modelColor, muted, phos, phosBright, pink, purple, red, text, yellow, } from "../theme.js";
 import { bigText } from "./bigdigits.js";
-import { bonsaiCaption, bonsaiLines } from "./bonsai.js";
+import { bonsaiCaption, bonsaiCompactLines, bonsaiLines } from "./bonsai.js";
 import { movingAverage, sparkline } from "./sparkline.js";
 const DAY = 86_400_000;
 const LIVE_SESSION_MS = 120_000;
+const CI_STYLE = {
+    failed: { glyph: "✗", color: red, label: "failed" },
+    running: { glyph: "◐", color: yellow, label: "running" },
+    waiting: { glyph: "○", color: muted, label: "waiting" },
+    passed: { glyph: "●", color: green, label: "passed" },
+    none: { glyph: "—", color: muted, label: "no checks" },
+};
+const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+function spinner() {
+    return SPINNER[Math.floor(Date.now() / 120) % SPINNER.length] ?? "⠿";
+}
+function clip(value, max) {
+    const text_ = value.replace(/\s+/g, " ").trim();
+    return text_.length > max ? `${text_.slice(0, Math.max(1, max - 1))}…` : text_;
+}
+function shortenHome(path) {
+    const home = process.env.HOME;
+    return home && path.startsWith(home) ? `~${path.slice(home.length)}` : path;
+}
+function statusText(status) {
+    if (status === "streaming")
+        return green(`${spinner()} streaming`);
+    if (status === "tool")
+        return yellow("▸ running tool");
+    return muted("· idle");
+}
+function ciBadge(checks) {
+    const style = CI_STYLE[checks];
+    return `${style.color(style.glyph)} ${style.color(style.label)}`;
+}
 function sumOutput(sessions) {
     return sessions.reduce((total, session) => total + session.output, 0);
 }
@@ -44,15 +74,10 @@ export function sessionsBody(width, state, showBonsai = false) {
         `${muted("busiest")} ${text(`${busiest.label} ${busiest.count}`)}  ·  ${muted("avg")} ${text(`${formatTokens(avgOutput)}/session`)}`,
     ];
     if (showBonsai) {
-        return [...bonsaiLines(width), bonsaiCaption(width), "", ...stats];
+        return [...bonsaiLines(width - 4), bonsaiCaption(width - 4), "", ...stats];
     }
     const lastClose = sessions[0] ? formatAgo(sessions[0].lastActivity, now) : "—";
-    return [
-        ...bigText(total.toLocaleString("en-US")).map((line) => pink(line)),
-        "",
-        ...stats,
-        muted(`last close ${lastClose}`),
-    ];
+    return [...bigText(total.toLocaleString("en-US")).map((line) => pink(line)), "", ...stats, muted(`last close ${lastClose}`)];
 }
 export function fleetBody(width, state) {
     const totals = state.totals;
@@ -64,13 +89,13 @@ export function fleetBody(width, state) {
         `${muted("avg")} ${text(avg.toFixed(0))}   ` +
         `${muted("peak")} ${text(peak.toFixed(0))}   ` +
         `${muted("tools")} ${text(`${totals.toolsPerMin.toFixed(0)}/min`)}   ` +
-        `${cyan(`${formatTokens(totals.tokensPerHour)} tokens/h`)}`;
+        `${phos(`${formatTokens(totals.tokensPerHour)}/h`)}`;
     const raw = sparkline(samples, contentWidth, pink);
     const avgLine = sparkline(movingAverage(samples, 10), contentWidth, purple);
     const weekStart = Date.now() - 7 * DAY;
     const started = state.sessions.filter((s) => s.startedAt >= weekStart).length;
     const liveSessions = state.sessions.filter((s) => Date.now() - s.lastActivity < LIVE_SESSION_MS).length;
-    const aggregate = `${text(`${totals.sessions}`)} ${muted("sessions")}  ·  ${text(`${totals.liveAgents}`)} ${muted("agents")}  ·  ${green(`${liveSessions}`)} ${muted("streaming")}  |  ` +
+    const aggregate = `${text(`${totals.sessions}`)} ${muted("sessions")}  ·  ${text(`${totals.liveAgents}`)} ${muted("working")}  ·  ${green(`${liveSessions}`)} ${muted("recent")}  |  ` +
         `${muted("1w")} ${text(`${started} started`)}  ${text(`${formatTokens(totals.outputTokens)} out`)}  ${text(`${totals.toolCalls} tools`)}`;
     const io = `${muted("in")} ${text(formatTokens(totals.inputTokens))}  ·  ` +
         `${muted("cache")} ${text(formatTokens(totals.cacheRead))}  ·  ` +
@@ -90,93 +115,126 @@ export function fleetBody(width, state) {
         legend || muted("no model usage yet"),
     ];
 }
-const STATUS_STYLE = {
-    streaming: green,
-    tool: yellow,
-    idle: muted,
-};
-function flatten(agents) {
-    const byPid = new Map(agents.map((a) => [a.pid, a]));
-    const roots = agents.filter((a) => !byPid.has(a.parentPid));
-    const order = [];
-    for (const root of roots) {
-        order.push({ agent: root, depth: 0 });
-        for (const child of agents.filter((a) => a.parentPid === root.pid))
-            order.push({ agent: child, depth: 1 });
-    }
-    // Include any orphaned children whose parent was not scanned.
-    for (const agent of agents)
-        if (!order.some((entry) => entry.agent === agent))
-            order.push({ agent, depth: 0 });
-    return order;
-}
-function agentDetail(width, agent, now, state) {
-    const norm = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
-    const key = norm(agent.name);
-    const session = (agent.sessionId ? state.sessions.find((s) => s.id === agent.sessionId) : undefined) ??
-        state.sessions.find((s) => {
-            if (!key || !s.name)
-                return false;
-            const candidate = norm(s.name);
-            return candidate === key || candidate.endsWith(key) || candidate.includes(key);
-        });
-    const status = STATUS_STYLE[agent.status]?.(agent.status) ?? muted(agent.status);
-    const maxText = Math.max(16, width - 12);
-    const wrap = (value) => (value.length > maxText ? `${value.slice(0, maxText - 1)}…` : value);
-    const lines = [
-        `${phosBright("▶")} ${phosBright(bold(agent.name))}  ${agent.model ? purple(agent.model) : muted("—")}  ${status}`,
-        `${muted("pid")} ${text(`${agent.pid}`)}   ${muted("parent")} ${text(`${agent.parentPid}`)}   ${muted("uptime")} ${text(agent.startedAt ? formatDuration(now - agent.startedAt) : "—")}   ${muted("started")} ${text(agent.startedAt ? formatClock(agent.startedAt) : "—")}`,
-        `${muted("cwd")} ${text(wrap(agent.cwd ?? "—"))}`,
-    ];
-    if (session) {
-        lines.push(`${muted("session")} ${text(session.name ?? session.id)}   ${muted("tokens")} ${text(formatTokens(session.output))}   ${muted("tools")} ${text(`${session.toolCalls}`)}   ${muted("spend")} ${text(formatMoney(session.cost))}`);
-    }
-    else if (agent.sessionId) {
-        lines.push(`${muted("session")} ${text(agent.sessionId)}`);
-    }
-    lines.push(`${muted("activity")} ${agent.detail ? border(wrap(agent.detail)) : muted("—")}`);
-    const children = state.agents.filter((a) => a.parentPid === agent.pid);
-    if (children.length > 0)
-        lines.push(`${muted("children")} ${text(children.map((c) => c.name).join(", "))}`);
-    lines.push("", muted("↑/↓ select   enter detail   tab list   click a row"));
-    return lines;
-}
-export function agentsBody(width, state, view = { selected: 0, mode: "list" }) {
-    const order = flatten(state.agents);
-    if (order.length === 0)
-        return { lines: [muted("no live pi processes detected")], hits: [] };
-    const now = Date.now();
-    const selected = Math.min(Math.max(0, view.selected), order.length - 1);
-    if (view.mode === "detail") {
-        const entry = order[selected];
-        if (entry)
-            return { lines: agentDetail(width, entry.agent, now, state), hits: [] };
-    }
+/**
+ * The agent rail: one row per unit of parallel work, showing its PR and CI at a
+ * glance. Selecting a row drives the flow panel beside it.
+ */
+export function agentsBody(width, state, view = { selected: 0, mode: "flow" }) {
+    const agents = state.agents;
+    if (agents.length === 0)
+        return { lines: [muted("no recent sessions")], hits: [] };
+    const selected = Math.min(Math.max(0, view.selected), agents.length - 1);
     const lines = [];
     const hits = [];
-    const MAX = 14;
-    order.slice(0, MAX).forEach((entry, index) => {
-        const { agent, depth } = entry;
+    agents.forEach((agent, index) => {
         const isSelected = index === selected;
         const cursor = isSelected ? phosBright("▶") : " ";
-        const branch = depth === 0 ? pink("▍") : muted("└");
-        const indent = "  ".repeat(depth);
-        const name = isSelected ? phosBright(bold(agent.name)) : bold(text(agent.name));
-        const status = STATUS_STYLE[agent.status]?.(agent.status) ?? muted(agent.status);
-        const model = agent.model ? purple(agent.model) : muted("—");
-        const up = agent.startedAt ? `${muted("up")} ${text(formatDuration(now - agent.startedAt))}` : "";
-        const pid = muted(`pid ${agent.pid}`);
-        const detail = agent.detail ? border(agent.detail) : "";
-        const row = `${cursor} ${indent}${branch} ${name}  ${model}  ${status}  ${pid}  ${up}  ${detail}`;
+        const spin = agent.status === "streaming" ? green(spinner()) : agent.status === "tool" ? yellow("▸") : muted("·");
+        const name = isSelected ? phosBright(bold(clip(agent.name, 16))) : text(clip(agent.name, 16));
+        const git = `${agent.ahead > 0 ? green(`↑${agent.ahead}`) : muted("↑0")}${agent.dirty > 0 ? amber(`±${agent.dirty}`) : ""}`;
+        const pr = agent.pr ? `${phos(`#${agent.pr.number}`)} ${CI_STYLE[agent.pr.checks].color(CI_STYLE[agent.pr.checks].glyph)}` : muted("no PR");
+        const row = `${cursor} ${spin} ${name}  ${git}  ${pr}`;
         lines.push(isSelected ? inverse(row) : row);
         hits.push(index);
     });
-    const hidden = order.length - Math.min(order.length, MAX);
-    if (hidden > 0) {
-        lines.push(muted(`… ${hidden} more`));
+    // A sprig anchors the rail; it fills space that would otherwise pad.
+    lines.push("");
+    hits.push(undefined);
+    for (const line of bonsaiCompactLines(width - 4)) {
+        lines.push(line);
         hits.push(undefined);
     }
     return { lines, hits };
+}
+/** The check-list view: every CI action and whether it is running, waiting, or failed. */
+function checksBody(width, work) {
+    const pr = work?.pr;
+    if (!pr)
+        return [muted("no pull request for this branch")];
+    const content = Math.max(20, width - 4);
+    const order = { fail: 0, running: 1, pending: 2, skipped: 3, pass: 4 };
+    const glyph = { fail: red("✗"), running: yellow("◐"), pending: muted("○"), skipped: muted("–"), pass: green("✓") };
+    const label = {
+        fail: red("failed"),
+        running: yellow("running"),
+        pending: muted("waiting"),
+        skipped: muted("skipped"),
+        pass: green("passed"),
+    };
+    const lines = [
+        `${phos(bold(`#${pr.number}`))} ${text(clip(pr.title, content - 10))}`,
+        `${ciBadge(pr.checks)}   ${muted("checks")} ${text(`${pr.checksPassed}/${pr.checksTotal}`)}   ${muted("running")} ${text(`${pr.checksRunning}`)}   ${muted("waiting")} ${text(`${pr.checksPending}`)}   ${muted("failed")} ${pr.checksFailed > 0 ? red(`${pr.checksFailed}`) : muted("0")}`,
+        "",
+    ];
+    const sorted = [...pr.details].sort((a, b) => (order[a.state] ?? 9) - (order[b.state] ?? 9));
+    for (const detail of sorted) {
+        lines.push(`${glyph[detail.state] ?? muted("·")} ${text(detail.name.padEnd(18).slice(0, 18))} ${label[detail.state] ?? muted(detail.state)}`);
+    }
+    if (sorted.length === 0)
+        lines.push(muted("no checks reported"));
+    lines.push("");
+    lines.push(pr.checksFailed > 0
+        ? `${red(`${pr.checksFailed} failed`)} ${muted(`· ${clip(pr.failing.join(", "), content - 14)}`)}`
+        : pr.pending.length > 0
+            ? `${yellow(`${pr.pending.length} in flight`)} ${muted(`· ${clip(pr.pending.join(", "), content - 16)}`)}`
+            : green("all checks clear"));
+    return lines;
+}
+/** The flow panel: what the selected agent has done, what is left, and its PR. */
+export function flowBody(width, work, mode = "flow") {
+    if (!work)
+        return [muted("no agent selected")];
+    if (mode === "checks")
+        return checksBody(width, work);
+    const now = Date.now();
+    const content = Math.max(20, width - 4);
+    const lines = [];
+    lines.push(`${phosBright(bold(work.name))}  ${work.model ? purple(work.model) : muted("—")}  ${statusText(work.status)}`);
+    lines.push(`${muted("cwd")} ${text(shortenHome(work.cwd || "—"))}`);
+    lines.push(`${muted("branch")} ${work.branch ? text(work.branch) : muted("(detached)")}   ${muted("up")} ${text(formatDuration(now - work.startedAt))}`);
+    lines.push(border("── progress " + "─".repeat(Math.max(0, content - 13))));
+    const changeSummary = work.insertions || work.deletions
+        ? `${green(`+${work.insertions}`)} ${red(`-${work.deletions}`)}`
+        : muted("no diff");
+    lines.push(`${work.ahead > 0 ? green(`↑${work.ahead} ahead`) : muted("↑0 ahead")}   ` +
+        `${work.dirty > 0 ? amber(`${work.dirty} uncommitted`) : green("clean tree")}   ${changeSummary}`);
+    if (work.commits.length > 0) {
+        for (const commit of work.commits.slice(0, 3)) {
+            lines.push(`${muted(commit.sha)} ${text(clip(commit.subject, content - 9))}`);
+        }
+    }
+    else {
+        lines.push(muted("no commits on this branch yet"));
+    }
+    for (const file of work.changedFiles.slice(0, work.commits.length > 0 ? 2 : 4)) {
+        lines.push(`${amber("±")} ${muted(clip(file, content - 4))}`);
+    }
+    lines.push(border("── pull request " + "─".repeat(Math.max(0, content - 17))));
+    const pr = work.pr;
+    if (pr) {
+        lines.push(`${phos(bold(`#${pr.number}`))} ${text(clip(pr.title, content - 10))}`);
+        lines.push(`${ciBadge(pr.checks)}   ${muted("checks")} ${text(`${pr.checksPassed}/${pr.checksTotal}`)}   ` +
+            `${muted("running")} ${text(`${pr.checksRunning}`)}   ${muted("failed")} ${pr.checksFailed > 0 ? red(`${pr.checksFailed}`) : muted("0")}`);
+        const bits = [`${muted("review")} ${text((pr.reviewDecision ?? "none").toLowerCase())}`, `${muted("state")} ${text(pr.state.toLowerCase())}`];
+        if (pr.isDraft)
+            bits.push(yellow("draft"));
+        if (pr.armed)
+            bits.push(green("armed to merge"));
+        lines.push(bits.join("   "));
+        if (pr.failing.length > 0)
+            lines.push(`${red("✗")} ${red(clip(pr.failing.join(", "), content - 4))}`);
+        else if (pr.pending.length > 0)
+            lines.push(`${yellow("◐")} ${yellow(clip(pr.pending.join(", "), content - 4))}`);
+    }
+    else {
+        lines.push(muted(work.branch ? "no pull request for this branch yet" : "not on a branch"));
+    }
+    lines.push(border("── activity " + "─".repeat(Math.max(0, content - 13))));
+    lines.push(`${muted("last tool")} ${text(work.lastTool ?? "—")}   ${muted("turns")} ${text(`${work.turns}`)}   ` +
+        `${muted("tokens")} ${text(formatTokens(work.tokens))}   ${muted("spend")} ${text(formatMoney(work.spend))}`);
+    if (work.note)
+        lines.push(`${muted("note")} ${border(clip(work.note, content - 7))}`);
+    return lines;
 }
 export function modelsBody(width, state) {
     const models = state.totals.perModel;
@@ -198,37 +256,26 @@ export function modelsBody(width, state) {
     lines.push(`${muted("total spend")} ${text(formatMoney(totals.cost))}`);
     return lines;
 }
-const CHECK_STYLE = {
-    green: { glyph: "✓", color: green },
-    red: { glyph: "✗", color: red },
-    running: { glyph: "◐", color: yellow },
-    none: { glyph: "•", color: muted },
-};
 export function prsBody(width, state, limit = 8) {
     const prs = state.prs;
-    if (prs.length === 0) {
-        return [muted("no pull requests (needs gh + a repo)")];
-    }
-    const counts = { green: 0, red: 0, running: 0, none: 0 };
+    if (prs.length === 0)
+        return [muted(state.repo ? "no open pull requests" : "no pull requests (needs gh + a repo)")];
+    const counts = { failed: 0, running: 0, waiting: 0, passed: 0, none: 0 };
     for (const pr of prs)
         counts[pr.checks]++;
     const armed = prs.filter((pr) => pr.armed).length;
     const open = prs.filter((pr) => pr.state === "OPEN").length;
-    const drafts = prs.filter((pr) => pr.isDraft).length;
-    const approved = prs.filter((pr) => pr.reviewDecision === "APPROVED").length;
     const stats = `${text(bold(`${open}`))} ${muted("open")}   ` +
-        `${green(`${counts.green} green`)}   ${red(`${counts.red} red`)}   ` +
-        `${yellow(`${counts.running} running`)}   ${muted("armed")} ${pink(`${armed}`)}`;
-    const meta = `${muted("approved")} ${text(`${approved}`)}  ·  ${muted("draft")} ${text(`${drafts}`)}  ·  ${muted("total")} ${text(`${prs.length}`)}`;
+        `${yellow(`${counts.running} running`)}   ${muted(`${counts.waiting} waiting`)}   ` +
+        `${red(`${counts.failed} failed`)}   ${green(`${counts.passed} passed`)}   ${muted("armed")} ${phos(`${armed}`)}`;
     const contentWidth = Math.max(10, width - 4);
     const total = prs.length || 1;
     const segments = [
-        { count: counts.green, color: green },
-        { count: counts.red, color: red },
+        { count: counts.passed, color: green },
+        { count: counts.failed, color: red },
         { count: counts.running, color: yellow },
-        { count: counts.none, color: muted },
+        { count: counts.waiting + counts.none, color: muted },
     ];
-    // Assign exactly one column per character using cumulative proportions.
     const columns = [];
     let cumulative = 0;
     let segmentIndex = 0;
@@ -246,9 +293,8 @@ export function prsBody(width, state, limit = 8) {
     let runColor = columns[0] ?? muted;
     let runLength = 0;
     for (const color of columns) {
-        if (color === runColor) {
+        if (color === runColor)
             runLength++;
-        }
         else {
             bar.push(runColor("█".repeat(runLength)));
             runColor = color;
@@ -257,15 +303,12 @@ export function prsBody(width, state, limit = 8) {
     }
     if (runLength > 0)
         bar.push(runColor("█".repeat(runLength)));
-    const lines = [stats, bar.join(""), meta];
+    const lines = [stats, bar.join("")];
     for (const pr of prs.slice(0, Math.max(2, limit))) {
-        const style = CHECK_STYLE[pr.checks] ?? CHECK_STYLE.none;
-        if (!style)
-            continue;
-        const glyph = style.color(style.glyph);
-        const number = muted(`#${pr.number}`);
-        const title = text(pr.title);
-        lines.push(`${glyph} ${number} ${title}`);
+        const style = CI_STYLE[pr.checks];
+        const detail = pr.failing.length > 0 ? red(` ✗${pr.failing.length}`) : pr.checksRunning > 0 ? yellow(` ◐${pr.checksRunning}`) : "";
+        const branch = pr.branch ? muted(` ${clip(pr.branch, 22)}`) : "";
+        lines.push(`${style.color(style.glyph)} ${muted(`#${pr.number}`)} ${text(clip(pr.title, contentWidth - 16 - 24))}${branch}${detail}`);
     }
     return lines;
 }

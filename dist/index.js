@@ -20,8 +20,8 @@ Options:
 
 Keys:
   ↑/↓, j/k               Select an agent
-  enter, tab             Toggle agent list / detail view
-  click                  Select an agent (click again for detail)
+  enter, tab             Toggle the selected agent's flow / checks view
+  click                  Select an agent (click again for its CI checks)
   q, ctrl+c              Quit
   r                      Force refresh
 

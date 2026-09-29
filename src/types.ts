@@ -27,6 +27,10 @@ export interface SessionSummary {
 	toolCalls: number;
 	userTurns: number;
 	assistantMessages: number;
+	/** Name of the most recent tool call. */
+	lastTool?: string;
+	/** Text of the most recent assistant message, for a quick "what's left" read. */
+	lastMessage?: string;
 }
 
 export interface AgentProcess {
@@ -46,14 +50,55 @@ export interface AgentProcess {
 	startedAt?: number;
 }
 
+export interface GitCommit {
+	sha: string;
+	subject: string;
+	/** Epoch ms. */
+	at: number;
+}
+
+export interface GitStatus {
+	branch?: string;
+	upstream?: string;
+	ahead: number;
+	behind: number;
+	/** Count of modified/untracked files. */
+	dirty: number;
+	/** Paths of modified/untracked files. */
+	files: string[];
+	insertions: number;
+	deletions: number;
+}
+
+/** CI status of a pull request, in the terms an operator cares about. */
+export type CheckState = "failed" | "running" | "waiting" | "passed" | "none";
+
+export interface CheckDetail {
+	name: string;
+	state: "pass" | "fail" | "running" | "pending" | "skipped";
+}
+
 export interface PullRequest {
 	number: number;
 	title: string;
 	state: string;
 	isDraft: boolean;
+	/** Head branch, used to pair the PR with the agent working on it. */
+	branch?: string;
 	reviewDecision?: string;
 	mergeable?: string;
-	checks: "green" | "red" | "running" | "none";
+	checks: CheckState;
+	checksTotal: number;
+	checksPassed: number;
+	checksFailed: number;
+	checksRunning: number;
+	checksPending: number;
+	/** Names of failing checks. */
+	failing: string[];
+	/** Names of running/pending checks. */
+	pending: string[];
+	/** Every check, in report order, for the check-list view. */
+	details: CheckDetail[];
 	armed: boolean;
 	updatedAt: string;
 	url: string;
@@ -70,6 +115,35 @@ export interface ModelUsage {
 	model: string;
 	tokens: number;
 	cost: number;
+}
+
+/**
+ * One unit of parallel work: a pi session paired with its process, git branch,
+ * and the pull request that branch opened.
+ */
+export interface AgentWork {
+	id: string;
+	name: string;
+	pid?: number;
+	status: "streaming" | "tool" | "idle";
+	model?: string;
+	cwd: string;
+	branch?: string;
+	ahead: number;
+	behind: number;
+	dirty: number;
+	changedFiles: string[];
+	insertions: number;
+	deletions: number;
+	commits: GitCommit[];
+	pr?: PullRequest;
+	lastTool?: string;
+	note?: string;
+	tokens: number;
+	spend: number;
+	turns: number;
+	startedAt: number;
+	lastActivity: number;
 }
 
 export interface FleetTotals {
@@ -94,7 +168,7 @@ export interface DashboardState {
 	generatedAt: number;
 	repo?: string;
 	sessions: SessionSummary[];
-	agents: AgentProcess[];
+	agents: AgentWork[];
 	prs: PullRequest[];
 	feed: FeedItem[];
 	totals: FleetTotals;
@@ -112,6 +186,8 @@ export interface DashboardConfig {
 	intervalMs: number;
 	/** A session is considered live if active within this window. */
 	liveWindowMs: number;
+	/** How recently a session must be active to appear in the agent rail. */
+	workWindowMs: number;
 	/** Max feed items to keep. */
 	feedLimit: number;
 	/** Generate synthetic data instead of reading disk. */

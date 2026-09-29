@@ -2,11 +2,13 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { PullRequest } from "../types.js";
+import type { CheckDetail, CheckState, PullRequest } from "../types.js";
 
 const execFileAsync = promisify(execFile);
 
 interface RawCheck {
+	name?: string;
+	context?: string;
 	status?: string;
 	conclusion?: string;
 	state?: string;
@@ -17,6 +19,7 @@ interface RawPr {
 	title: string;
 	state: string;
 	isDraft: boolean;
+	headRefName?: string;
 	reviewDecision?: string;
 	mergeable?: string;
 	statusCheckRollup?: RawCheck[] | null;
@@ -29,6 +32,7 @@ const PR_FIELDS = [
 	"title",
 	"state",
 	"isDraft",
+	"headRefName",
 	"reviewDecision",
 	"mergeable",
 	"statusCheckRollup",
@@ -36,58 +40,79 @@ const PR_FIELDS = [
 	"url",
 ].join(",");
 
-function classifyChecks(checks: RawCheck[] | null | undefined): PullRequest["checks"] {
-	if (!checks || checks.length === 0) return "none";
-	let sawFailure = false;
-	let sawRunning = false;
-	let sawSuccess = false;
-	for (const check of checks) {
-		const conclusion = (check.conclusion ?? "").toUpperCase();
-		const state = (check.state ?? "").toUpperCase();
-		const status = (check.status ?? "").toUpperCase();
-		if (status && status !== "COMPLETED") {
-			sawRunning = true;
-			continue;
-		}
-		if (["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"].includes(conclusion)) {
-			sawFailure = true;
-		} else if (conclusion === "SUCCESS" || state === "SUCCESS") {
-			sawSuccess = true;
-		} else if (state === "FAILURE" || state === "ERROR") {
-			sawFailure = true;
-		} else if (state === "PENDING") {
-			sawRunning = true;
-		}
-	}
-	if (sawRunning) return "running";
-	if (sawFailure) return "red";
-	if (sawSuccess) return "green";
-	return "none";
+function classifyCheck(check: RawCheck): CheckDetail["state"] {
+	const conclusion = (check.conclusion ?? "").toUpperCase();
+	const status = (check.status ?? "").toUpperCase();
+	const state = (check.state ?? "").toUpperCase();
+	if (status && status !== "COMPLETED") return "running";
+	if (["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE"].includes(conclusion)) return "fail";
+	if (conclusion === "SKIPPED" || conclusion === "NEUTRAL") return "skipped";
+	if (conclusion === "SUCCESS") return "pass";
+	if (state === "SUCCESS") return "pass";
+	if (state === "FAILURE" || state === "ERROR") return "fail";
+	if (state === "PENDING" || state === "EXPECTED" || state === "QUEUED") return "pending";
+	return "pending";
+}
+
+/** Roll a PR's checks up into the operator-facing state. */
+function summarizeChecks(details: CheckDetail[]): Pick<
+	PullRequest,
+	"checks" | "checksTotal" | "checksPassed" | "checksFailed" | "checksRunning" | "checksPending" | "failing" | "pending"
+> {
+	const passed = details.filter((d) => d.state === "pass").length;
+	const failed = details.filter((d) => d.state === "fail");
+	const running = details.filter((d) => d.state === "running");
+	const pending = details.filter((d) => d.state === "pending");
+	const total = details.length;
+
+	let checks: CheckState;
+	if (total === 0) checks = "none";
+	else if (failed.length > 0) checks = "failed";
+	else if (running.length > 0) checks = "running";
+	else if (pending.length > 0) checks = "waiting";
+	else if (passed > 0) checks = "passed";
+	else checks = "waiting";
+
+	return {
+		checks,
+		checksTotal: total,
+		checksPassed: passed,
+		checksFailed: failed.length,
+		checksRunning: running.length,
+		checksPending: pending.length,
+		failing: failed.map((d) => d.name),
+		pending: [...running, ...pending].map((d) => d.name),
+	};
 }
 
 export async function scanPullRequests(repo?: string): Promise<PullRequest[]> {
 	try {
-		const { stdout } = await execFileAsync(
-			"gh",
-			["pr", "list", "--json", PR_FIELDS, "--limit", "50"],
-			{ cwd: repo, maxBuffer: 8 * 1024 * 1024 },
-		);
+		const { stdout } = await execFileAsync("gh", ["pr", "list", "--json", PR_FIELDS, "--limit", "60"], {
+			cwd: repo,
+			maxBuffer: 8 * 1024 * 1024,
+		});
 		const parsed = JSON.parse(stdout) as RawPr[];
 		return parsed.map((pr) => {
-			const checks = classifyChecks(pr.statusCheckRollup);
+			const details: CheckDetail[] = (pr.statusCheckRollup ?? []).map((check) => ({
+				name: check.name ?? check.context ?? "check",
+				state: classifyCheck(check),
+			}));
+			const summary = summarizeChecks(details);
 			return {
 				number: pr.number,
 				title: pr.title,
 				state: pr.state,
 				isDraft: pr.isDraft,
+				branch: pr.headRefName,
 				reviewDecision: pr.reviewDecision,
 				mergeable: pr.mergeable,
-				checks,
+				...summary,
+				details,
 				armed:
 					!pr.isDraft &&
 					pr.reviewDecision === "APPROVED" &&
 					pr.mergeable === "MERGEABLE" &&
-					checks === "green",
+					summary.checks === "passed",
 				updatedAt: pr.updatedAt,
 				url: pr.url,
 			};

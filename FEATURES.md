@@ -10,15 +10,20 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 - [x] Aggregate counters: sessions, live agents, started in the last week, total tokens and tools
 - [x] Model breakdown legend with per-model counts
 
-## Agents and subagents
+## Agent flow
 
-- [x] Discover live `pi` processes via `ps` (no config required)
-- [x] Parent → subagent hierarchy rendered as a tree
-- [x] Per-agent status: streaming / running a tool / idle
-- [x] Show the command or detail the agent is currently working on
-- [x] Collapse overflow with an "N more" row
-- [ ] Attribute tokens per agent (requires RPC event stream)
-- [ ] Drill-in view for a single agent
+- [x] One work item per recent session, joining process + git + PR state
+- [x] Rail of agents with status, branch ahead/dirty, and PR number/CI
+- [x] **What's done**: commits ahead of the base, commit subjects, `+adds/-dels`
+- [x] **What's left**: uncommitted file count/list and the agent's latest note
+- [x] Branch, working directory, and session age
+- [x] The pull request a branch opened: number, title, review, and merged state
+- [x] CI classified as running / waiting / failed / passed, per PR
+- [x] Per-check list view (`tab`), failures and running checks first
+- [x] Keyboard and mouse selection
+- [x] Git state cached (~4s) so a 1s poll stays cheap
+- [ ] Attribute tokens per agent (requires the RPC event stream)
+- [ ] Diff preview inside the panel
 
 ## Sessions
 
@@ -39,10 +44,11 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 
 ## Pull requests
 
-- [x] Open / green / red / running / armed-to-merge counters
-- [x] Segmented status bar
-- [x] PR list with number and title (`gh`)
+- [x] Running / waiting / failed / passed counters and armed-to-merge
+- [x] Segmented status bar coloured by CI state
+- [x] PR list with number, title, branch, and failing/running counts (`gh`)
 - [x] Repo name resolved for the panel title
+- [x] Pair each PR with the agent branch that opened it
 - [ ] Merged-in-24h counter
 - [ ] Review decision and merge queue view
 
@@ -59,8 +65,8 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 - [x] Full-screen layout that adapts to terminal width and height
 - [x] CRT-style double-line bezel with a `FLEET` banner, live clock, and blinking cursor
 - [x] Warm amber-and-moss bonsai palette
-- [x] Realistic ASCII bonsai, tinted by part, in the grow-log panel on tall terminals
-- [x] Interactive agent view: `↑/↓`/`j/k` select, `enter`/`tab` toggle list/detail, mouse click to select
+- [x] Realistic ASCII bonsai, tinted by part: full tree when idle, a sprig in the agent rail
+- [x] Interactive agent rail: `↑/↓`/`j/k` select, `enter`/`tab` toggle flow/checks, mouse click to select
 - [x] `q` to quit, `r` to refresh
 - [x] `--demo` synthetic mode for screenshots and first-run
 - [x] `--snapshot` single-frame output for CI and docs
@@ -80,5 +86,6 @@ Status legend: `[x]` shipped in this repo, `[ ]` planned.
 
 - [x] Read-only by default; never mutates sessions or repos
 - [x] mtime-cached session parsing for cheap polling
+- [x] TTL-cached `git status`/`git log` per working directory
 - [x] Graceful degradation when `gh`, sessions, or processes are unavailable
 - [ ] RPC supervisor mode for control actions (launch / steer / stop)

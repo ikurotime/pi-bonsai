@@ -6,39 +6,39 @@ Built on `@earendil-works/pi-tui`, so it renders with the same components and
 feel as pi itself.
 
 ```
-╔═[ FLEET ] · pi·bonsai ═════════════════════════════════════════════════╗
-║ ╭─ bonsai · grow log ────────╮  ╭─ fleet ──────────────────────────╮ ║
-║ │            .:&@@&:.        │  │ 835 tok/s  avg 85  peak 2,099     │ ║
-║ │         ,&@@&&@@@@&&@,     │  │ ▁▂▃▅▂▇▃▁▂▅▇▃▂▁▃▅▇▂▁▃▅▂▇▃▁▂▅▇    │ ║
-║ │      .,&@@@&@\|/@@@@&@@,   │  │ 9 sessions · 4 agents · 4 live    │ ║
-║ │     ,&@@&@@@&\|/-.@@&@@@'  │  │ in 4.1M · cache 2.0M · $1.30      │ ║
-║ │      `'&@@&~-.||  `'&@@@@, │  ╰──────────────────────────────────╯ ║
-║ │     .:&&@&~-.__||/-'&@@&@' │  ╭─ models · session ───────────────╮ ║
-║ │    ,&@@&@@'`-.||/    `'~   │  │ ■ glm-5.3       ██████████ 273k   │ ║
-║ │     `'&@&@&:. |||  ,&@@&,  │  │ ■ sonnet-4.5    ██████░░░░ 154k   │ ║
-║ │        `'&@@&-.||-'@@&@@'  │  │ cache read 2.0M · hit 33% · $1.30 │ ║
-║ │              .-'||         │  ╰──────────────────────────────────╯ ║
-║ │              |||)          │                                       ║
-║ │          ____/||\____      │                                       ║
-║ │       .-'~~~~~~~~~~~~'-.   │                                       ║
-║ │      (  . : . : . : .   )  │                                       ║
-║ │       `-.__(__)__(__).-'   │                                       ║
-║ │ 9 all · 676k tokens · $1.30│                                       ║
-║ ╰─────────────────────────────╯                                       ║
-║ ╭─ canopy · 4 live · 1/4 ───────────────────────────────────────────╮ ║
-║ │ ▶ ▍ p3 rated  glm-5.3  streaming  pid 41001  up 10m              │ ║
-║ │     └ fix2e  glm-5.3  tool  pid 41002  terminal command…         │ ║
-║ ╰───────────────────────────────────────────────────────────────────╯ ║
-╚═[ ↑↓ select · enter detail · tab · q quit · r refresh ]══ 03:32:56 ══╝
+╔═[ FLEET ] · pi·bonsai ══════════════════════════════════════════════════╗
+║ ╭─ agents · 4 ───────────────╮  ╭─ flow · wave10 ────────────────────╮ ║
+║ │ ▶ ⠦ wave10  ↑3±2  #118216 ◐│  │ wave10  opus-5.5  ⠦ streaming      │ ║
+║ │   ▸ p3-rated  ↑1  #118044 ●│  │ cwd ~/hermes-portal                │ ║
+║ │   ▸ fix2e  ↑5±4  #118132 ✗ │  │ branch feat/portal-dropdown  10m   │ ║
+║ │   · ci-triage  ↑0±1  no PR │  │ ── progress ─────────────────────  │ ║
+║ │                            │  │ ↑3 ahead  2 uncommitted  +128 -14  │ ║
+║ │            .:&@@&:.        │  │ a1b2c3d portal the dropdown menu   │ ║
+║ │         ,&@@&&@@@@&&@,     │  │ ± apps/desktop/src/portal.ts       │ ║
+║ │        ,&@@&@@@&\|/@@@'    │  │ ── pull request ────────────────   │ ║
+║ │        `&@@&~-.|| `&@@&,   │  │ #118216 portal dropdown submenu    │ ║
+║ │          `'&@&:.||-'&@@'   │  │ ◐ running   checks 9/12  failed 0  │ ║
+║ │              .-'||         │  │ ◐ e2e (shard 2), codeql, preview   │ ║
+║ │          ____/||\____      │  │ ── activity ───────────────────    │ ║
+║ ╰────────────────────────────╯  │ last tool bash   turns 3   12k tok │ ║
+║ ╭─ pull requests ──────────────────────────────────────────────────╮   ║
+║ │ 12 open  3 running  2 waiting  3 failed  4 passed   armed 1      │   ║
+║ │ ████████████████████████████████████████████████████████████████ │   ║
+║ │ ◐ #118216 portal dropdown submenu  feat/portal-dropdown ◐2       │   ║
+║ │ ● #118044 statusbar timer  fix/statusbar-timer                   │   ║
+║ │ ✗ #118132 dismiss boot-failure overlay  fix/boot-overlay ✗3      │   ║
+║ ╰──────────────────────────────────────────────────────────────────╯   ║
+╚═[ ↑↓ agent · tab checks · q quit · r refresh ]══ 03:32:56 [live █] ═══╝
 ```
 
 ## Features
 
 See [FEATURES.md](./FEATURES.md) for the full list. Highlights:
 
-- **Full-screen CRT console** — a double-line bezel with a `FLEET` banner that adapts to the terminal size, a warm amber phosphor palette, live clock, and a realistic ASCII bonsai tinted by part (moss canopy, bark trunk, bronze pot).
+- **Agent flow** — one row per parallel agent. Select one to see **what's done** (commits ahead, `+adds/-dels`), **what's left** (uncommitted files, the agent's own note), its **branch**, and the **pull request it opened** (number + title).
+- **CI at a glance** — every PR is classified as **running / waiting / failed / passed**. Press `tab` for the per-check list, failures first.
+- **Full-screen CRT console** — a double-line bezel with a `FLEET` banner, warm amber phosphor palette, live clock, and a bonsai that fills the idle state.
 - **Fleet** — tok/s now / average / peak, tools per minute, tokens per hour, sparklines, model breakdown.
-- **Agents (interactive)** — live `pi` and subagent processes in a tree; move with `↑/↓` or `j/k`, press `enter`/`tab` for a detail view, or click a row (click again to open). Detail shows pid/parent, uptime, cwd, session tokens/tools/spend, activity, and children.
 - **Sessions** — totals, activity per hour/day, last close, per-session tokens and cost.
 - **Models** — per-model token bars and spend for the current session, cache-hit rate, reasoning tokens.
 - **Pull requests** — open / green / red / running / armed, a status bar, and the PR list (via `gh`).
@@ -81,7 +81,7 @@ pi-bonsai [options]
   -h, --help             Show this help
 ```
 
-Keys: `↑/↓` or `j/k` select an agent, `enter`/`tab` toggle the agent list/detail view, click a row to select it, `q` / `ctrl+c` quit, `r` refresh.
+Keys: `↑/↓` or `j/k` select an agent, `enter`/`tab` toggle that agent's **flow** and **CI checks** view, click a row to select it (click again for checks), `q` / `ctrl+c` quit, `r` refresh.
 
 ### Data sources
 

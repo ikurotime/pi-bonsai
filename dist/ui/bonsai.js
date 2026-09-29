@@ -25,6 +25,16 @@ const POT = [
     "   (  . : . : . : .   )",
     "    `-.__(__)__(__).-'",
 ];
+/** A trimmed canopy+trunk sprig for tight spaces (e.g. the agent rail footer). */
+const COMPACT = [
+    "      .:&@@&:.",
+    "   ,&@@&&@@@@&&@,",
+    "  ,&@@&@@@&\\|/@@@'",
+    "  `&@@&~-.|| `&@@&,",
+    "    `'&@&:.||-'&@@'",
+    "        .-'||",
+    "    ____/||\\____",
+];
 const ALL = [...FOLIAGE, ...TRUNK, ...POT];
 /** Width in columns of the bonsai block. */
 export const BONSAI_WIDTH = ALL.reduce((max, line) => Math.max(max, line.length), 0);
@@ -71,5 +81,14 @@ export function bonsaiCaption(width = BONSAI_WIDTH) {
     const text = "bonsai · rooted";
     const pad = " ".repeat(Math.max(0, Math.floor((width - text.length) / 2)));
     return `${pad}${dimPhos(text)}`;
+}
+/** A shorter sprig, centred inside `width`. */
+export function bonsaiCompactLines(width = BONSAI_WIDTH) {
+    const artWidth = COMPACT.reduce((max, line) => Math.max(max, line.length), 0);
+    const pad = " ".repeat(Math.max(0, Math.floor((width - artWidth) / 2)));
+    return COMPACT.map((line, index) => {
+        const tinted = index === COMPACT.length - 1 ? tintPot(line) : tintFoliage(line);
+        return pad + tinted;
+    });
 }
 //# sourceMappingURL=bonsai.js.map
